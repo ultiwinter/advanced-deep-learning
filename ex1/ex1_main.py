@@ -124,10 +124,10 @@ def run(args):
     test(model, device, testloader, criterion)
 
     # Save the model
-    #args.save_model = True
+    args.save_model = True
 
-    # if args.save_model:
-    #     torch.save(model.state_dict(), f"ex1_{args.model}.pt")
+    if args.save_model:
+        torch.save(model.state_dict(), f"ex1_{args.model}.pt")
 
 
 if __name__ == '__main__':

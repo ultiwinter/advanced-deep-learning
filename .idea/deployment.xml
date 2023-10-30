@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="af23aduk@cip7e1.cip.cs.fau.de:22" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="af23aduk@cip1e3.cip.cs.fau.de:22">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="af23aduk@cip1e4.cip.cs.fau.de:22">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="af23aduk@cip1e5.cip.cs.fau.de:22">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="af23aduk@cip7e1.cip.cs.fau.de:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/tmp/pycharm_project_852" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>
