@@ -13,7 +13,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train a neural network to classify CIFAR10')
     parser.add_argument('--model', type=str, default='r18', help='model to train (default: r18)')
     parser.add_argument('--batch-size', type=int, default=64, help='input batch size for training (default: 64)')
-    parser.add_argument('--epochs', type=int, default=5, help='number of epochs to train (default: 5)')
+    parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 5)')
     parser.add_argument('--lr', type=float, default=0.003, help='learning rate (default: 0.003)')
     parser.add_argument('--momentum', type=float, default=0.9, help='SGD momentum (default: 0.9)')
     parser.add_argument('--no-cuda', action='store_true', default=False, help='disables CUDA training')
@@ -46,6 +46,7 @@ def test(model, device, test_loader, criterion, set="Test"):
     model.eval()
     test_loss = 0
     correct = 0
+    lowest_test_loss = 999999999999999
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
@@ -59,6 +60,9 @@ def test(model, device, test_loader, criterion, set="Test"):
     print('\n{} set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         set, test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
+
+    if set == "Validation":
+        return correct/len(test_loader.dataset)
 
 
 def run(args):
@@ -78,7 +82,7 @@ def run(args):
                                     ])
 
     # TODO: adjust folder
-    dataset = datasets.CIFAR10(r'dataset/cifar10', download=True, train=True, transform=transform)
+    dataset = datasets.CIFAR10(r'/proj/ciptmp/af23aduk/train', download=True, train=True, transform=transform)
     trainset, valset = torch.utils.data.random_split(dataset,
                                                      [int(len(dataset) * 0.9), len(dataset) - int(len(dataset) * 0.9)])
     trainloader = DataLoader(trainset, batch_size=64, shuffle=True)
@@ -86,7 +90,7 @@ def run(args):
 
     # Download and load the test data
     # TODO: adjust folder
-    testset = datasets.CIFAR10(r'dataset/cifar10', download=True, train=False, transform=transform)
+    testset = datasets.CIFAR10(r'/proj/ciptmp/af23aduk/test', download=True, train=False, transform=transform)
     testloader = DataLoader(testset, batch_size=64, shuffle=True)
 
     # Build a feed-forward network
@@ -117,9 +121,13 @@ def run(args):
     model.to(device)
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
+    best_acc = 0
     for epoch in range(1, args.epochs + 1):
         train(model, trainloader, optimizer, criterion, device, epoch)
-        test(model, device, valloader, criterion, set="Validation")
+        acc = test(model, device, valloader, criterion, set="Validation")
+        if best_acc < acc:
+            best_acc = acc
+            best_model = model.state_dict()
 
     test(model, device, testloader, criterion)
 
@@ -127,7 +135,7 @@ def run(args):
     args.save_model = True
 
     if args.save_model:
-        torch.save(model.state_dict(), f"ex1_{args.model}.pt")
+        torch.save(best_model, f"ex1_{args.model}.pt")
 
 
 if __name__ == '__main__':
