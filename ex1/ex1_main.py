@@ -13,7 +13,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train a neural network to classify CIFAR10')
     parser.add_argument('--model', type=str, default='r18', help='model to train (default: r18)')
     parser.add_argument('--batch-size', type=int, default=64, help='input batch size for training (default: 64)')
-    parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 5)')
+    parser.add_argument('--epochs', type=int, default=10, help='number of epochs to train (default: 5)')
     parser.add_argument('--lr', type=float, default=0.0025, help='learning rate (default: 0.003)')
     parser.add_argument('--momentum', type=float, default=0.9, help='SGD momentum (default: 0.9)')
     parser.add_argument('--no-cuda', action='store_true', default=False, help='disables CUDA training')
@@ -73,15 +73,16 @@ def run(args):
                                     # Data augmentation (Abdallah Eid)
                                     transforms.RandomCrop(32, padding=1),
                                     transforms.RandomHorizontalFlip(),
-                                    transforms.RandomRotation(30),
-                                    transforms.RandomAffine(0, shear=10, scale=(0.8, 1.2)),
-                                    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
-                                    transforms.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3)
-                                                             , value=0, inplace=False)
+                                    # transforms.RandomRotation(30),
+                                    # transforms.RandomAffine(0, shear=10, scale=(0.8, 1.2)),
+                                    # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+                                    # transforms.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3)
+                                    #                          , value=0, inplace=False),
+
                                     ])
 
     # TODO: adjust folder
-    dataset = datasets.CIFAR10(r'/proj/ciptmp/af23aduk/train', download=True, train=True, transform=transform)
+    dataset = datasets.CIFAR10(r'/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/dataset/cifar10', download=True, train=True, transform=transform)
     trainset, valset = torch.utils.data.random_split(dataset,
                                                      [int(len(dataset) * 0.9), len(dataset) - int(len(dataset) * 0.9)])
     trainloader = DataLoader(trainset, batch_size=64, shuffle=True)
@@ -89,7 +90,7 @@ def run(args):
 
     # Download and load the test data
     # TODO: adjust folder
-    testset = datasets.CIFAR10(r'/proj/ciptmp/af23aduk/test', download=True, train=False, transform=transform)
+    testset = datasets.CIFAR10(r'/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/dataset/cifar10', download=True, train=False, transform=transform)
     testloader = DataLoader(testset, batch_size=64, shuffle=True)
 
     # Build a feed-forward network
