@@ -1,2 +1,8 @@
-/.idea/
+/.idea/*.xml
+/ex1/dataset/
 *.xml
+.DS_Store
+ex1/__pycache__
+.idea/deployment.xml
+.idea/exercises.iml
+.idea/misc.xml
