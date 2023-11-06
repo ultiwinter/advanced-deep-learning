@@ -14,7 +14,7 @@ def parse_args():
     parser.add_argument('--model', type=str, default='r18', help='model to train (default: r18)')
     parser.add_argument('--batch-size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--epochs', type=int, default=10, help='number of epochs to train (default: 5)')
-    parser.add_argument('--lr', type=float, default=0.0025, help='learning rate (default: 0.003)')
+    parser.add_argument('--lr', type=float, default=0.003, help='learning rate (default: 0.003)')
     parser.add_argument('--momentum', type=float, default=0.9, help='SGD momentum (default: 0.9)')
     parser.add_argument('--no-cuda', action='store_true', default=False, help='disables CUDA training')
     parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
@@ -61,28 +61,24 @@ def test(model, device, test_loader, criterion, set="Test"):
         100. * correct / len(test_loader.dataset)))
 
     if set == "Validation":
-        return correct/len(test_loader.dataset)
+        return correct / len(test_loader.dataset)
 
 
 def run(args):
     # Download and load the training data
-    transform = transforms.Compose([transforms.ToTensor(),
-                                    # ImageNet mean/std values should also fit okayish for CIFAR
-                                    transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+    train_transform = transforms.Compose([transforms.RandomHorizontalFlip(p=0.5),
+                                          transforms.RandomCrop(32, padding=4),
+                                          transforms.ToTensor(),
+                                          # ImageNet mean/std values should also fit okayish for CIFAR
+                                          transforms.Normalize([0, 0, 0], [1, 1, 1])])
 
-                                    # Data augmentation (Abdallah Eid)
-                                    transforms.RandomCrop(32, padding=1),
-                                    transforms.RandomHorizontalFlip(),
-                                    # transforms.RandomRotation(30),
-                                    # transforms.RandomAffine(0, shear=10, scale=(0.8, 1.2)),
-                                    # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
-                                    # transforms.RandomErasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3)
-                                    #                          , value=0, inplace=False),
-
-                                    ])
+    test_transform = transforms.Compose([transforms.ToTensor(),
+                                         # ImageNet mean/std values should also fit okayish for CIFAR
+                                         transforms.Normalize([0, 0, 0], [1, 1, 1])])
 
     # TODO: adjust folder
-    dataset = datasets.CIFAR10(r'/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/dataset/cifar10', download=True, train=True, transform=transform)
+    dataset = datasets.CIFAR10(r'/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/dataset/cifar10',
+                               download=True, train=True, transform=train_transform)
     trainset, valset = torch.utils.data.random_split(dataset,
                                                      [int(len(dataset) * 0.9), len(dataset) - int(len(dataset) * 0.9)])
     trainloader = DataLoader(trainset, batch_size=64, shuffle=True)
@@ -90,7 +86,8 @@ def run(args):
 
     # Download and load the test data
     # TODO: adjust folder
-    testset = datasets.CIFAR10(r'/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/dataset/cifar10', download=True, train=False, transform=transform)
+    testset = datasets.CIFAR10(r'/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/dataset/cifar10',
+                               download=True, train=False, transform=test_transform)
     testloader = DataLoader(testset, batch_size=64, shuffle=True)
 
     # Build a feed-forward network
@@ -120,6 +117,7 @@ def run(args):
         device = torch.device("cpu")
     model.to(device)
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    #optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=0.0001)
 
     best_acc = 0
     for epoch in range(1, args.epochs + 1):
