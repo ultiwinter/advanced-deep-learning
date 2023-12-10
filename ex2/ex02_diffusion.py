@@ -78,7 +78,7 @@ class Diffusion:
         # TODO (2.2): implement the reverse diffusion process of the model for (noisy) samples x and timesteps t. Note that x and t both have a batch dimension
 
         betas_t = extract(self.betas, t, x.shape)
-        sqrt_one_minus_alphas_cumprod_t = extract(
+        sqrt_one_minus_alphas_bar_t = extract(
             self.sqrt_one_minus_alpha_bar, t, x.shape
         )
         sqrt_recip_alphas_t = extract(self.sqrt_recip_alphas, t, x.shape)
@@ -86,7 +86,7 @@ class Diffusion:
         # Equation 11 in the paper
         # Use our model (noise predictor) to predict the mean
         model_mean = sqrt_recip_alphas_t * (
-                x - betas_t * model(x, t) / sqrt_one_minus_alphas_cumprod_t
+                x - betas_t * model(x, t) / sqrt_one_minus_alphas_bar_t
         )
 
         # TODO (2.2): The method should return the image at timestep t-1.
@@ -129,10 +129,10 @@ class Diffusion:
         if noise is None:
             noise = torch.randn_like(x_zero)
 
-        sqrt_alphas_cumprod_t = extract(self.sqrt_alpha_bar, t, x_zero.shape)
-        sqrt_one_minus_alphas_cumprod_t = extract(self.sqrt_one_minus_alpha_bar, t, x_zero.shape)
+        sqrt_alphas_bar_t = extract(self.sqrt_alpha_bar, t, x_zero.shape)
+        sqrt_one_minus_alphas_bar_t = extract(self.sqrt_one_minus_alpha_bar, t, x_zero.shape)
 
-        return sqrt_alphas_cumprod_t * x_zero + sqrt_one_minus_alphas_cumprod_t * noise
+        return sqrt_alphas_bar_t * x_zero + sqrt_one_minus_alphas_bar_t * noise
 
     def p_losses(self, denoise_model, x_zero, t, noise=None, loss_type="l1"):
         # TODO (2.2): compute the input to the network using the forward diffusion process and predict the noise using the model; if noise is None, you will need to create a new noise vector, otherwise use the provided one.
