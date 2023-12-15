@@ -185,15 +185,16 @@ class Unet(nn.Module):
         dim_mults=(1, 2, 4, 8),
         channels=3,
         resnet_block_groups=4,
-        class_free_guidance=False,  # TODO: Incorporate in your code
-        p_uncond=None,
-        num_classes=None,
+        class_free_guidance=True,  # TODO: Incorporate in your code
+        p_uncond=0.1,
+        num_classes=10,
     ):
         super().__init__()
 
         # determine dimensions
         self.channels = channels
         input_channels = channels   # adapted from the original source
+        self.p_uncond = p_uncond
 
         init_dim = default(init_dim, dim)
         self.init_conv = nn.Conv2d(input_channels, init_dim, 1, padding=0)  # changed to 1 and 0 from 7,3
@@ -214,6 +215,11 @@ class Unet(nn.Module):
         )
 
         # TODO: Implement a class embedder for the conditional part of the classifier-free guidance & define a default
+
+        # if class_free_guidance:
+        #     self.class_embedder = nn.Embedding(num_classes, time_dim)
+        # else:
+        #     self.class_embedder = nn.Parameter(torch.zeros(1, time_dim))
 
         # ======================================================
 
@@ -265,7 +271,7 @@ class Unet(nn.Module):
         self.final_res_block = block_klass(dim * 2, dim, time_emb_dim=time_dim)
         self.final_conv = nn.Conv2d(dim, self.out_dim, 1)
 
-    def forward(self, x, time):
+    def forward(self, x, time, class_label=None):
 
         x = self.init_conv(x)
         r = x.clone()
@@ -277,13 +283,17 @@ class Unet(nn.Module):
         #  - during testing, you need to have control over whether the conditioning is applied or not
         #  - analogously to the time embedding, the class embedding is provided in every ResNet block as additional conditioning
 
+        t = self.time_mlp(time)
+        # c = self.class_embedder(class_label) if exists(class_label) else 0
 
         h = []
 
         for block1, block2, attn, downsample in self.downs:
+            # x = block1(x, (t, c))
             x = block1(x, t)
             h.append(x)
 
+            # x = block2(x, (t, c))
             x = block2(x, t)
             x = attn(x)
             h.append(x)
@@ -296,9 +306,11 @@ class Unet(nn.Module):
 
         for block1, block2, attn, upsample in self.ups:
             x = torch.cat((x, h.pop()), dim=1)
+            # x = block1(x, (t, c))
             x = block1(x, t)
 
             x = torch.cat((x, h.pop()), dim=1)
+            # x = block2(x, (t, c))
             x = block2(x, t)
             x = attn(x)
 
