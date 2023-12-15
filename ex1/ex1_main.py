@@ -76,8 +76,8 @@ def run(args):
                                          # ImageNet mean/std values should also fit okayish for CIFAR
                                          transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
 
-    # TODO: adjust folder
-    dataset = datasets.CIFAR10(r'/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/dataset/cifar10',
+    #TODO: adjust folder - >
+    dataset = datasets.CIFAR10(r'datasets',
                                download=True, train=True, transform=train_transform)
     trainset, valset = torch.utils.data.random_split(dataset,
                                                      [int(len(dataset) * 0.9), len(dataset) - int(len(dataset) * 0.9)])
@@ -86,7 +86,7 @@ def run(args):
 
     # Download and load the test data
     # TODO: adjust folder
-    testset = datasets.CIFAR10(r'/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/dataset/cifar10',
+    testset = datasets.CIFAR10(r'datasets',
                                download=True, train=False, transform=test_transform)
     testloader = DataLoader(testset, batch_size=64, shuffle=True)
 
