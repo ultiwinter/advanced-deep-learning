@@ -1,11 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="ez72oxib@cip7g2.cip.cs.fau.de:22 password" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="ez72oxib@cip7b1.cip.cs.fau.de:22 password" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
+    <option name="confirmBeforeUploading" value="false" />
     <serverData>
-      <paths name="ez72oxib@cip7g2.cip.cs.fau.de:22 password">
+      <paths name="ez72oxib@cip7b1.cip.cs.fau.de:22 password">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning_Repo" local="$PROJECT_DIR$" />
+            <mapping deploy="/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="ez72oxib@cip7g1.cip.cs.fau.de:22 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>

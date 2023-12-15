@@ -6,3 +6,4 @@ ex1/__pycache__
 .idea/deployment.xml
 .idea/exercises.iml
 .idea/misc.xml
+models/DDPM/*.pt
