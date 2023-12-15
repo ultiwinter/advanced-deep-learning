@@ -41,7 +41,7 @@ class Diffusion:
 
     # TODO (2.4): Adapt all methods in this class for the conditional case. You can use y=None to encode that you want to train the model fully unconditionally.
 
-    def __init__(self, timesteps, get_noise_schedule, img_size, device="cuda"):
+    def __init__(self, timesteps, get_noise_schedule, img_size, device="cuda", class_labels=None):
         """
         Takes the number of noising steps, a function for generating a noise schedule as well as the image size as input.
         """
@@ -49,7 +49,7 @@ class Diffusion:
 
         self.img_size = img_size
         self.device = device
-        # self.class_labels = class_labels
+        self.class_labels = class_labels
 
         # define beta schedule
         self.betas = get_noise_schedule(self.timesteps)
@@ -144,7 +144,7 @@ class Diffusion:
             noise = torch.randn_like(x_zero)
 
         x_noisy = self.q_sample(x_zero=x_zero, t=t, noise=noise)
-        predicted_noise = denoise_model(x_noisy, t)
+        predicted_noise = denoise_model(x_noisy, t, self.class_labels)
 
         if loss_type == 'l1':
             # TODO (2.2): implement an L1 loss for this task

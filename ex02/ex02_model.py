@@ -5,6 +5,7 @@ import torch
 from torch import nn, einsum
 import torch.nn.functional as F
 from ex02_helpers import *
+import random
 
 
 # Note: This code employs large parts of the following sources:
@@ -185,7 +186,7 @@ class Unet(nn.Module):
         dim_mults=(1, 2, 4, 8),
         channels=3,
         resnet_block_groups=4,
-        class_free_guidance=True,  # TODO: Incorporate in your code
+        class_free_guidance=False,  # TODO: Incorporate in your code
         p_uncond=0.1,
         num_classes=10,
     ):
@@ -195,7 +196,8 @@ class Unet(nn.Module):
         self.channels = channels
         input_channels = channels   # adapted from the original source
         self.p_uncond = p_uncond
-
+        self.class_embed_values = []
+        self.num_classes = num_classes
         init_dim = default(init_dim, dim)
         self.init_conv = nn.Conv2d(input_channels, init_dim, 1, padding=0)  # changed to 1 and 0 from 7,3
 
@@ -216,10 +218,10 @@ class Unet(nn.Module):
 
         # TODO: Implement a class embedder for the conditional part of the classifier-free guidance & define a default
 
-        # if class_free_guidance:
-        #     self.class_embedder = nn.Embedding(num_classes, time_dim)
-        # else:
-        #     self.class_embedder = nn.Parameter(torch.zeros(1, time_dim))
+        if class_free_guidance:
+            self.class_embedder = nn.Embedding(num_classes, time_dim)
+        else:
+            self.class_embedder = nn.Parameter(torch.zeros(1, time_dim))
 
         # ======================================================
 
@@ -275,7 +277,6 @@ class Unet(nn.Module):
 
         x = self.init_conv(x)
         r = x.clone()
-
         t = self.time_mlp(time)
 
         # TODO: Implement the class conditioning. Keep in mind that
@@ -284,39 +285,47 @@ class Unet(nn.Module):
         #  - analogously to the time embedding, the class embedding is provided in every ResNet block as additional conditioning
 
         t = self.time_mlp(time)
-        # c = self.class_embedder(class_label) if exists(class_label) else 0
+        if class_label is not None:
+            # randomly chosen using p_uncond probability of choosing whether to use the class label or give the
+            if random.choices([True, False], weights=[1-self.p_uncond, self.p_uncond], k=1)[0]:
+                c = self.class_embedder(class_label)
+            else:
+                c = self.class_embedder(torch.tensor(self.num_classes))
+        else:
+            # If class label is not provided, use the default null token
+            c = self.class_embedder(torch.tensor(self.num_classes))
 
         h = []
 
         for block1, block2, attn, downsample in self.downs:
-            # x = block1(x, (t, c))
-            x = block1(x, t)
+            x = block1(x, t, c)
+            # x = block1(x, t)
             h.append(x)
 
-            # x = block2(x, (t, c))
-            x = block2(x, t)
+            x = block2(x, t, c)
+            # x = block2(x, t)
             x = attn(x)
             h.append(x)
 
             x = downsample(x)
 
-        x = self.mid_block1(x, t)
+        x = self.mid_block1(x, t, c)
         x = self.mid_attn(x)
-        x = self.mid_block2(x, t)
+        x = self.mid_block2(x, t, c)
 
         for block1, block2, attn, upsample in self.ups:
             x = torch.cat((x, h.pop()), dim=1)
-            # x = block1(x, (t, c))
-            x = block1(x, t)
+            x = block1(x, t, c)
+            # x = block1(x, t)
 
             x = torch.cat((x, h.pop()), dim=1)
-            # x = block2(x, (t, c))
-            x = block2(x, t)
+            x = block2(x, t, c)
+            # x = block2(x, t)
             x = attn(x)
 
             x = upsample(x)
 
         x = torch.cat((x, r), dim=1)
 
-        x = self.final_res_block(x, t)
+        x = self.final_res_block(x, t, c)
         return self.final_conv(x)

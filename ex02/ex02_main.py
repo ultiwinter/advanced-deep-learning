@@ -21,11 +21,13 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train a neural network to diffuse images')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--timesteps', type=int, default=100, help='number of timesteps for diffusion model (default: 100)')
-    parser.add_argument('--epochs', type=int, default=5, help='number of epochs to train (default: 5)')
+    parser.add_argument('--epochs', type=int, default=30, help='number of epochs to train (default: 5)')
     parser.add_argument('--lr', type=float, default=0.003, help='learning rate (default: 0.003)')
     # parser.add_argument('--momentum', type=float, default=0.9, help='SGD momentum (default: 0.9)')
     parser.add_argument('--no_cuda', action='store_true', default=False, help='disables CUDA training')
     # parser.add_argument('--seed', type=int, default=1, help='random seed (default: 1)')
+    parser.add_argument('--class_conditional', action='store_true', default=False,
+                        help='Enable class conditional training')
     parser.add_argument('--log_interval', type=int, default=100, help='how many batches to wait before logging training status')
     parser.add_argument('--save_model', action='store_true', default=False, help='For Saving the current Model')
     parser.add_argument('--run_name', type=str, default="DDPM")
@@ -77,6 +79,7 @@ def train(model, trainloader, optimizer, diffusor, epoch, device, args):
     for step, (images, labels) in enumerate(pbar):
 
         images = images.to(device)
+        labels = labels
         optimizer.zero_grad()
 
         # Algorithm 1 line 3: sample t uniformly for every example in the batch
@@ -107,11 +110,12 @@ def run(args):
     batch_size = args.batch_size
     device = "cuda" if not args.no_cuda and torch.cuda.is_available() else "cpu"
 
-    model = Unet(dim=image_size, channels=channels, dim_mults=(1, 2, 4,)).to(device)
+    #model = Unet(dim=image_size, channels=channels, dim_mults=(1, 2, 4,)).to(device)
+    model = Unet(dim=image_size, channels=channels, dim_mults=(1, 2, 4,),class_free_guidance=args.class_conditional).to(device)
     optimizer = AdamW(model.parameters(), lr=args.lr)
 
     my_scheduler = lambda x: linear_beta_schedule(0.0001, 0.02, x)
-    diffusor = Diffusion(timesteps, my_scheduler, image_size, device)
+    diffusor = Diffusion(timesteps, my_scheduler, image_size, device) #################
 
     # define image transformations (e.g. using torchvision)
     transform = Compose([
@@ -142,14 +146,14 @@ def run(args):
 
     test(model, testloader, diffusor, device, args)
 
-    save_path = Path("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/generated_images")  # TODO: Adapt to your needs
+    save_path = Path("/proj/ciptmp/af23aduk/adl_ex02/generated_images")  # TODO: Adapt to your needs
     save_path.mkdir(exist_ok=True)
 
     n_images = 8
     sample_and_save_images(n_images, image_size, channels, diffusor, model, save_path, reverse_transform)
 
     # Create the directory if it doesn't exist
-    checkpoint_dir = os.path.join("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/models", args.run_name)
+    checkpoint_dir = os.path.join("/proj/ciptmp/af23aduk/adl_ex02/models", args.run_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     torch.save(model.state_dict(), os.path.join(checkpoint_dir, "ckpt.pt"))
