@@ -7,3 +7,5 @@ ex1/__pycache__
 .idea/exercises.iml
 .idea/misc.xml
 models/DDPM/*.pt
+generated_images/*.png
+```
