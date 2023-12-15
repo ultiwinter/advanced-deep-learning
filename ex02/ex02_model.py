@@ -185,9 +185,9 @@ class Unet(nn.Module):
         dim_mults=(1, 2, 4, 8),
         channels=3,
         resnet_block_groups=4,
-        class_free_guidance=True,  # TODO: Incorporate in your code
-        p_uncond=0.1,
-        num_classes=10,
+        class_free_guidance=False,  # TODO: Incorporate in your code
+        p_uncond=None,
+        num_classes=None,
     ):
         super().__init__()
 
@@ -216,10 +216,10 @@ class Unet(nn.Module):
 
         # TODO: Implement a class embedder for the conditional part of the classifier-free guidance & define a default
 
-        # if class_free_guidance:
-        #     self.class_embedder = nn.Embedding(num_classes, time_dim)
-        # else:
-        #     self.class_embedder = nn.Parameter(torch.zeros(1, time_dim))
+        if class_free_guidance:
+            self.class_embedder = nn.Embedding(num_classes, time_dim)
+        else:
+            self.class_embedder = nn.Parameter(torch.zeros(1, time_dim))
 
         # ======================================================
 
@@ -235,8 +235,8 @@ class Unet(nn.Module):
             self.downs.append(
                 nn.ModuleList(
                     [
-                        block_klass(dim_in, dim_in, time_emb_dim=time_dim),
-                        block_klass(dim_in, dim_in, time_emb_dim=time_dim),
+                        block_klass(dim_in, dim_in, time_emb_dim=time_dim, classes_emb_dim=time_dim),
+                        block_klass(dim_in, dim_in, time_emb_dim=time_dim, classes_emb_dim=time_dim),
                         Residual(PreNorm(dim_in, LinearAttention(dim_in))),
                         Downsample(dim_in, dim_out)
                         if not is_last
@@ -246,9 +246,9 @@ class Unet(nn.Module):
             )
 
         mid_dim = dims[-1]
-        self.mid_block1 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim)
+        self.mid_block1 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim, classes_emb_dim=time_dim)
         self.mid_attn = Residual(PreNorm(mid_dim, Attention(mid_dim)))
-        self.mid_block2 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim)
+        self.mid_block2 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim, classes_emb_dim=time_dim)
 
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out)):
             is_last = ind == (len(in_out) - 1)
@@ -256,8 +256,8 @@ class Unet(nn.Module):
             self.ups.append(
                 nn.ModuleList(
                     [
-                        block_klass(dim_out + dim_in, dim_out, time_emb_dim=time_dim),
-                        block_klass(dim_out + dim_in, dim_out, time_emb_dim=time_dim),
+                        block_klass(dim_out + dim_in, dim_out, time_emb_dim=time_dim, classes_emb_dim=time_dim),
+                        block_klass(dim_out + dim_in, dim_out, time_emb_dim=time_dim, classes_emb_dim=time_dim),
                         Residual(PreNorm(dim_out, LinearAttention(dim_out))),
                         Upsample(dim_out, dim_in)
                         if not is_last
@@ -268,7 +268,7 @@ class Unet(nn.Module):
 
         self.out_dim = default(out_dim, channels)
 
-        self.final_res_block = block_klass(dim * 2, dim, time_emb_dim=time_dim)
+        self.final_res_block = block_klass(dim * 2, dim, time_emb_dim=time_dim, classes_emb_dim=time_dim)
         self.final_conv = nn.Conv2d(dim, self.out_dim, 1)
 
     def forward(self, x, time, class_label=None):
@@ -283,40 +283,43 @@ class Unet(nn.Module):
         #  - during testing, you need to have control over whether the conditioning is applied or not
         #  - analogously to the time embedding, the class embedding is provided in every ResNet block as additional conditioning
 
-        t = self.time_mlp(time)
-        # c = self.class_embedder(class_label) if exists(class_label) else 0
+        if class_label is not None:
+            c = self.class_embedder(class_label)
 
+        # else:
+        #     if self.training and torch.rand(1).item() < self.p_uncond:
+        #         c = torch.zeros_like(self.class_embedder.weight)
+        #     else:
+        #         c = self.class_embedder(torch.zeros(1, dtype=torch.long))
+        else:
+            c = self.class_embedder(class_label)
         h = []
 
         for block1, block2, attn, downsample in self.downs:
-            # x = block1(x, (t, c))
-            x = block1(x, t)
+            x = block1(x, t, c)
             h.append(x)
 
-            # x = block2(x, (t, c))
-            x = block2(x, t)
+            x = block2(x, t, c)
             x = attn(x)
             h.append(x)
 
             x = downsample(x)
 
-        x = self.mid_block1(x, t)
+        x = self.mid_block1(x, t, c)
         x = self.mid_attn(x)
-        x = self.mid_block2(x, t)
+        x = self.mid_block2(x, t, c)
 
         for block1, block2, attn, upsample in self.ups:
             x = torch.cat((x, h.pop()), dim=1)
-            # x = block1(x, (t, c))
-            x = block1(x, t)
+            x = block1(x, t, c)
 
             x = torch.cat((x, h.pop()), dim=1)
-            # x = block2(x, (t, c))
-            x = block2(x, t)
+            x = block2(x, t, c)
             x = attn(x)
 
             x = upsample(x)
 
         x = torch.cat((x, r), dim=1)
 
-        x = self.final_res_block(x, t)
+        x = self.final_res_block(x, t, c)
         return self.final_conv(x)

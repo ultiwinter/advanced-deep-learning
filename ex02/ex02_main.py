@@ -58,8 +58,10 @@ def test(model, testloader, diffusor, device, args):
 
     for step, (images, labels) in enumerate(pbar):
         images = images.to(device)
+        labels = labels.to(device)
+
         t = torch.randint(0, timesteps, (len(images),), device=device).long()
-        loss = diffusor.p_losses(model, images, t, loss_type="l2")
+        loss = diffusor.p_losses(model, images, t, noise=None, class_label=labels, loss_type="l2")
 
         if step % args.log_interval == 0:
             print('Test Step: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
@@ -77,11 +79,13 @@ def train(model, trainloader, optimizer, diffusor, epoch, device, args):
     for step, (images, labels) in enumerate(pbar):
 
         images = images.to(device)
+        labels = labels.to(device)
+
         optimizer.zero_grad()
 
         # Algorithm 1 line 3: sample t uniformly for every example in the batch
         t = torch.randint(0, timesteps, (len(images),), device=device).long()
-        loss = diffusor.p_losses(model, images, t, loss_type="l2")
+        loss = diffusor.p_losses(model, images, t, noise=None, class_label=labels, loss_type="l2")
 
         loss.backward()
         optimizer.step()
@@ -107,7 +111,8 @@ def run(args):
     batch_size = args.batch_size
     device = "cuda" if not args.no_cuda and torch.cuda.is_available() else "cpu"
 
-    model = Unet(dim=image_size, channels=channels, dim_mults=(1, 2, 4,)).to(device)
+    model = Unet(dim=image_size, channels=channels, dim_mults=(1, 2, 4,), class_free_guidance=True,
+                 p_uncond=0.1, num_classes=10).to(device)
     optimizer = AdamW(model.parameters(), lr=args.lr)
 
     my_scheduler = lambda x: linear_beta_schedule(0.0001, 0.02, x)

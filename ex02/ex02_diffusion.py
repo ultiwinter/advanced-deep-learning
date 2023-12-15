@@ -75,7 +75,7 @@ class Diffusion:
         self.posterior_variance = self.betas * (1. - self.alphas_bar_prod_prev) / (1. - self.alphas_bar_prod)
 
     @torch.no_grad()
-    def p_sample(self, model, x, t, t_index):
+    def p_sample(self, model, x, t, t_index, class_label=None, w=0.5):
         # TODO (2.2): implement the reverse diffusion process of the model for (noisy) samples x and timesteps t. Note that x and t both have a batch dimension
 
         # Equation 11 in the paper
@@ -91,7 +91,7 @@ class Diffusion:
         # Equation 11 in the paper
         # Use our model (noise predictor) to predict the mean
         model_mean = sqrt_recip_alphas_t * (
-                x - betas_t * model(x, t, self.class_labels) / one_minus_alphas_bar_sqrt_t
+                x - betas_t * model(x, t, class_label) / one_minus_alphas_bar_sqrt_t
         )
 
         if t_index == 0:
@@ -100,12 +100,16 @@ class Diffusion:
             posterior_variance_t = extract(self.posterior_variance, t, x.shape)
             noise = torch.randn_like(x)
             # Algorithm 2 line 4:
-            return model_mean + torch.sqrt(posterior_variance_t) * noise
 
+            # Apply the conditional guidance according to Equation 11
+            conditional_mean = (1 + w) * model_mean - w * x
+
+            # Algorithm 2 line 4:
+            return conditional_mean + torch.sqrt(posterior_variance_t) * noise
 
     # Algorithm 2 (including returning all images)
     @torch.no_grad()
-    def sample(self, model, image_size, batch_size=16, channels=3):
+    def sample(self, model, image_size, batch_size=16, channels=3, class_label=None):
 
         # TODO (2.2): Implement the full reverse diffusion loop from random noise to an image, iteratively ''reducing'' the noise in the generated image.
         device = next(model.parameters()).device
@@ -119,7 +123,7 @@ class Diffusion:
         imgs = []
 
         for i in tqdm(reversed(range(0, self.timesteps)), desc='sampling loop time step', total=self.timesteps):
-            img = self.p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i)
+            img = self.p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i, class_label)
             imgs.append(img)
 
         # TODO (2.2): Return the generated images
@@ -138,13 +142,13 @@ class Diffusion:
 
         return sqrt_alphas_prod_t * x_zero + sqrt_one_minus_alphas_prod_t * noise
 
-    def p_losses(self, denoise_model, x_zero, t, noise=None, loss_type="l1"):
+    def p_losses(self, denoise_model, x_zero, t, noise=None, class_label=None, loss_type="l1"):
         # TODO (2.2): compute the input to the network using the forward diffusion process and predict the noise using the model; if noise is None, you will need to create a new noise vector, otherwise use the provided one.
         if noise == None:
             noise = torch.randn_like(x_zero)
 
         x_noisy = self.q_sample(x_zero=x_zero, t=t, noise=noise)
-        predicted_noise = denoise_model(x_noisy, t)
+        predicted_noise = denoise_model(x_noisy, t, class_label)
 
         if loss_type == 'l1':
             # TODO (2.2): implement an L1 loss for this task
