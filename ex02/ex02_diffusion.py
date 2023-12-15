@@ -49,6 +49,7 @@ class Diffusion:
 
         self.img_size = img_size
         self.device = device
+        # self.class_labels = class_labels
 
         # define beta schedule
         self.betas = get_noise_schedule(self.timesteps)
@@ -90,7 +91,7 @@ class Diffusion:
         # Equation 11 in the paper
         # Use our model (noise predictor) to predict the mean
         model_mean = sqrt_recip_alphas_t * (
-                x - betas_t * model(x, t) / one_minus_alphas_bar_sqrt_t
+                x - betas_t * model(x, t, self.class_labels) / one_minus_alphas_bar_sqrt_t
         )
 
         if t_index == 0:

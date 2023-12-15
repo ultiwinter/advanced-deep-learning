@@ -142,7 +142,7 @@ def run(args):
 
     test(model, testloader, diffusor, device, args)
 
-    save_path = Path("generated_images")  # TODO: Adapt to your needs
+    save_path = Path("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/generated_images")  # TODO: Adapt to your needs
     save_path.mkdir(exist_ok=True)
 
     n_images = 8
