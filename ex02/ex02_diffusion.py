@@ -119,7 +119,8 @@ class Diffusion:
         imgs = []
 
         for i in tqdm(reversed(range(0, self.timesteps)), desc='sampling loop time step', total=self.timesteps):
-            img = self.p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i)
+            print(i)
+            img = self.p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i, class_label)
             imgs.append(img)
 
         # TODO (2.2): Return the generated images

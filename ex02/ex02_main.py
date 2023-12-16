@@ -21,7 +21,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train a neural network to diffuse images')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--timesteps', type=int, default=100, help='number of timesteps for diffusion model (default: 100)')
-    parser.add_argument('--epochs', type=int, default=30, help='number of epochs to train (default: 5)')
+    parser.add_argument('--epochs', type=int, default=15, help='number of epochs to train (default: 5)')
     parser.add_argument('--lr', type=float, default=0.003, help='learning rate (default: 0.003)')
     # parser.add_argument('--momentum', type=float, default=0.9, help='SGD momentum (default: 0.9)')
     parser.add_argument('--no_cuda', action='store_true', default=False, help='disables CUDA training')

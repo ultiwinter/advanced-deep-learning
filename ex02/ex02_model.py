@@ -197,8 +197,8 @@ class Unet(nn.Module):
         input_channels = channels   # adapted from the original source
         self.p_uncond = p_uncond
         self.class_free_guidance = class_free_guidance
-        self.class_embed_values = []
         self.num_classes = num_classes
+
         init_dim = default(init_dim, dim)
         self.init_conv = nn.Conv2d(input_channels, init_dim, 1, padding=0)  # changed to 1 and 0 from 7,3
 
@@ -209,6 +209,7 @@ class Unet(nn.Module):
 
         # time embeddings
         time_dim = dim * 4
+        self.null_token = nn.Parameter(torch.zeros(8,time_dim))
 
         self.time_mlp = nn.Sequential(
             SinusoidalPositionEmbeddings(dim),
@@ -222,7 +223,10 @@ class Unet(nn.Module):
         if self.class_free_guidance:
             self.class_embedder = nn.Embedding(num_classes, time_dim)
         else:
-            self.class_embedder = nn.Parameter(torch.zeros(1, time_dim))
+            # self.class_embedder = nn.Parameter(torch.zeros(num_classes, 1))
+            self.null_token = nn.Parameter(torch.zeros(8,time_dim))
+        # device = "cuda:0" # if not args.no_cuda and torch.cuda.is_available() else "cpu"
+        # self.class_embedder = self.class_embedder.to(device)
 
         # ======================================================
 
@@ -285,25 +289,37 @@ class Unet(nn.Module):
         #  - during testing, you need to have control over whether the conditioning is applied or not
         #  - analogously to the time embedding, the class embedding is provided in every ResNet block as additional conditioning
 
-        t = self.time_mlp(time)
+        # if class_label is not None:
+        #     c = self.class_embedder(class_label)
+
+        # else:
+        #     if self.training and torch.rand(1).item() < self.p_uncond:
+        #         c = torch.zeros_like(self.class_embedder.weight)
+        #     else:
+        #         c = self.class_embedder(torch.zeros(1, dtype=torch.long))
+        # else:
+        #     c = self.class_embedder(class_label)
+
         if class_label is not None:
             # randomly chosen using p_uncond probability of choosing whether to use the class label or give the
-            if random.choices([True, False], weights=[1-self.p_uncond, self.p_uncond], k=1)[0] == True:
-                if self.class_free_guidance:
-                    c = self.class_embedder(torch.tensor(self.num_classes))
+            if self.training:
+                if random.choices([True, False], weights=[1 - self.p_uncond, self.p_uncond], k=1)[0]:
+                    c = self.class_embedder(class_label)
                 else:
-                    # null token
-                    c = self.class_embedder
+                    if self.class_free_guidance:
+                        c = self.class_embedder(class_label)
+                    else:
+                        # null token
+                        c = self.null_token
             else:
                 if self.class_free_guidance:
-                    c = self.class_embedder(torch.tensor(self.num_classes))
+                    c = self.class_embedder(class_label)
                 else:
                     # null token
-                    c = self.class_embedder
+                    c = self.null_token
         else:
             # if class label is not provided, use the default null token
-            c = self.class_embedder
-
+            c = self.null_token
         h = []
 
         for block1, block2, attn, downsample in self.downs:
