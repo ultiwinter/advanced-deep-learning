@@ -196,6 +196,7 @@ class Unet(nn.Module):
         self.channels = channels
         input_channels = channels   # adapted from the original source
         self.p_uncond = p_uncond
+        self.class_free_guidance = class_free_guidance
         self.class_embed_values = []
         self.num_classes = num_classes
         init_dim = default(init_dim, dim)
@@ -218,7 +219,7 @@ class Unet(nn.Module):
 
         # TODO: Implement a class embedder for the conditional part of the classifier-free guidance & define a default
 
-        if class_free_guidance:
+        if self.class_free_guidance:
             self.class_embedder = nn.Embedding(num_classes, time_dim)
         else:
             self.class_embedder = nn.Parameter(torch.zeros(1, time_dim))
@@ -290,10 +291,14 @@ class Unet(nn.Module):
             if random.choices([True, False], weights=[1-self.p_uncond, self.p_uncond], k=1)[0]:
                 c = self.class_embedder(class_label)
             else:
-                c = self.class_embedder(torch.tensor(self.num_classes))
+                if self.class_free_guidance:
+                    c = self.class_embedder(torch.tensor(self.num_classes))
+                else:
+                    # null token
+                    c = self.class_embedder
         else:
-            # If class label is not provided, use the default null token
-            c = self.class_embedder(torch.tensor(self.num_classes))
+            # if class label is not provided, use the default null token
+            c = self.class_embedder
 
         h = []
 
