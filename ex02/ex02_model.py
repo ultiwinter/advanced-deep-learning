@@ -288,8 +288,12 @@ class Unet(nn.Module):
         t = self.time_mlp(time)
         if class_label is not None:
             # randomly chosen using p_uncond probability of choosing whether to use the class label or give the
-            if random.choices([True, False], weights=[1-self.p_uncond, self.p_uncond], k=1)[0]:
-                c = self.class_embedder(class_label)
+            if random.choices([True, False], weights=[1-self.p_uncond, self.p_uncond], k=1)[0] == True:
+                if self.class_free_guidance:
+                    c = self.class_embedder(torch.tensor(self.num_classes))
+                else:
+                    # null token
+                    c = self.class_embedder
             else:
                 if self.class_free_guidance:
                     c = self.class_embedder(torch.tensor(self.num_classes))

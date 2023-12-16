@@ -138,13 +138,13 @@ class Diffusion:
 
         return sqrt_alphas_prod_t * x_zero + sqrt_one_minus_alphas_prod_t * noise
 
-    def p_losses(self, denoise_model, x_zero, t, noise=None, loss_type="l1"):
+    def p_losses(self, denoise_model, x_zero, t, noise=None, class_label=None, loss_type="l1"):
         # TODO (2.2): compute the input to the network using the forward diffusion process and predict the noise using the model; if noise is None, you will need to create a new noise vector, otherwise use the provided one.
         if noise == None:
             noise = torch.randn_like(x_zero)
 
         x_noisy = self.q_sample(x_zero=x_zero, t=t, noise=noise)
-        predicted_noise = denoise_model(x_noisy, t, self.class_labels)
+        predicted_noise = denoise_model(x_noisy, t, class_label)
 
         if loss_type == 'l1':
             # TODO (2.2): implement an L1 loss for this task
