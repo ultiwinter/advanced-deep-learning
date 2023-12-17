@@ -5,6 +5,7 @@ import torch
 from torch import nn, einsum
 import torch.nn.functional as F
 from ex02_helpers import *
+import random
 
 
 # Note: This code employs large parts of the following sources:
@@ -207,6 +208,7 @@ class Unet(nn.Module):
 
         # time embeddings
         time_dim = dim * 4
+        self.class_embedder = nn.Embedding(num_classes, time_dim)
 
         self.time_mlp = nn.Sequential(
             SinusoidalPositionEmbeddings(dim),
@@ -270,7 +272,7 @@ class Unet(nn.Module):
         self.final_res_block = block_klass(dim * 2, dim, time_emb_dim=time_dim, classes_emb_dim=time_dim)
         self.final_conv = nn.Conv2d(dim, self.out_dim, 1)
 
-    def forward(self, x, time, class_labels=None):
+    def forward(self, x, time, class_label=None):
 
         x = self.init_conv(x)
         r = x.clone()
@@ -282,13 +284,20 @@ class Unet(nn.Module):
         #  - during testing, you need to have control over whether the conditioning is applied or not
         #  - analogously to the time embedding, the class embedding is provided in every ResNet block as additional conditioning
 
-        if class_labels is not None:
 
-            if self.training and torch.rand(1).item() < self.p_uncond:
-                c = self.class_embedder(class_labels)
+        if class_label is not None:
+            # randomly chosen using p_uncond probability of choosing whether to use the class label or give the
+            if self.training:
+                if random.choices([True, False], weights=[1 - self.p_uncond, self.p_uncond], k=1)[0]:
+                    c = self.class_embedder(class_label)
+                else:
+                    c = nn.Parameter(torch.zeros_like(t))
             else:
+
+                # null token
                 c = nn.Parameter(torch.zeros_like(t))
         else:
+            # if class label is not provided, use the default null token
             c = nn.Parameter(torch.zeros_like(t))
 
         h = []

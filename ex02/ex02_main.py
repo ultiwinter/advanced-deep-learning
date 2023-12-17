@@ -21,7 +21,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train a neural network to diffuse images')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--timesteps', type=int, default=100, help='number of timesteps for diffusion model (default: 100)')
-    parser.add_argument('--epochs', type=int, default=5, help='number of epochs to train (default: 5)')
+    parser.add_argument('--epochs', type=int, default=1, help='number of epochs to train (default: 5)')
     parser.add_argument('--lr', type=float, default=0.003, help='learning rate (default: 0.003)')
     # parser.add_argument('--momentum', type=float, default=0.9, help='SGD momentum (default: 0.9)')
     parser.add_argument('--no_cuda', action='store_true', default=False, help='disables CUDA training')
@@ -36,14 +36,15 @@ def parse_args():
 def sample_and_save_images(n_images, diffusor, model, device, store_path, transform=None):
     # TODO: Implement - adapt code and method signature as needed
 
-    class_label = diffusor.class_labels
-    class_label = torch.tensor(class_label, device=device).long()
+    class_labels = diffusor.class_labels
+    if class_labels is not None:
+        class_labels = torch.tensor(class_labels, device=device).long()
     image_size = diffusor.img_size
     channels = 3
 
     # sample 64 images from the model
     sampled_images = diffusor.sample(model, image_size=image_size, batch_size=n_images, channels=channels,
-                                     class_labels=class_label)
+                                     class_labels=class_labels)
 
     for t in range(diffusor.timesteps)[-3:-1]:
         # save the images
@@ -67,7 +68,7 @@ def test(model, testloader, diffusor, device, args):
         labels = labels.to(device)
 
         t = torch.randint(0, timesteps, (len(images),), device=device).long()
-        loss = diffusor.p_losses(model, images, t, noise=None, class_labels=None, loss_type="l2")
+        loss = diffusor.p_losses(model, images, t, noise=None, class_labels=labels, loss_type="l2")
 
         if step % args.log_interval == 0:
             print('Test Step: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
@@ -91,7 +92,7 @@ def train(model, trainloader, optimizer, diffusor, epoch, device, args):
 
         # Algorithm 1 line 3: sample t uniformly for every example in the batch
         t = torch.randint(0, timesteps, (len(images),), device=device).long()
-        loss = diffusor.p_losses(model, images, t, noise=None, class_labels=None, loss_type="l2")
+        loss = diffusor.p_losses(model, images, t, noise=None, class_labels=labels, loss_type="l2")
 
         loss.backward()
         optimizer.step()
@@ -152,14 +153,14 @@ def run(args):
 
     test(model, testloader, diffusor, device, args)
 
-    save_path = Path("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/generated_images")  # TODO: Adapt to your needs
+    save_path = Path("/proj/ciptmp/af23aduk/adl_ex02/generated_images")  # TODO: Adapt to your needs
     save_path.mkdir(exist_ok=True)
 
     n_images = 8
-    #sample_and_save_images(n_images, diffusor, model, device, save_path, reverse_transform)
+    sample_and_save_images(n_images, diffusor, model, device, save_path, reverse_transform)
 
     # Create the directory if it doesn't exist
-    checkpoint_dir = os.path.join("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/models", args.run_name)
+    checkpoint_dir = os.path.join("/proj/ciptmp/af23aduk/adl_ex02/models", args.run_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     torch.save(model.state_dict(), os.path.join(checkpoint_dir, "ckpt.pt"))
