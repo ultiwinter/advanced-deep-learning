@@ -54,6 +54,8 @@ class Diffusion:
         # define beta schedule
         self.betas = get_noise_schedule(self.timesteps)
 
+        print(self.betas.shape)
+
         # TODO (2.2): Compute the central values for the equation in the forward pass already here so you can quickly use them in the forward pass.
         # Note that the function torch.cumprod may be of help
         # torch.cumprod(input, dim, *, dtype=None, out=None) → Tensor

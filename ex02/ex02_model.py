@@ -1,6 +1,6 @@
 import math
 from functools import partial
-from einops import rearrange, reduce
+from einops import rearrange, reduce, repeat
 import torch
 from torch import nn, einsum
 import torch.nn.functional as F
@@ -194,7 +194,10 @@ class Unet(nn.Module):
         # determine dimensions
         self.channels = channels
         input_channels = channels   # adapted from the original source
+
+        # For classifier free guidance
         self.p_uncond = p_uncond
+
         self.num_classes = num_classes
 
         init_dim = default(init_dim, dim)
@@ -219,6 +222,7 @@ class Unet(nn.Module):
 
         if class_free_guidance:
             self.class_embedder = nn.Embedding(num_classes, time_dim)
+            self.null_classes_emb = nn.Parameter(torch.randn(time_dim))
 
         # ======================================================
 
@@ -277,6 +281,9 @@ class Unet(nn.Module):
 
         t = self.time_mlp(time)
 
+        batch = x.shape[0]
+
+
         # TODO: Implement the class conditioning. Keep in mind that
         #  - for each element in the batch, the class embedding is replaced with the null token with a certain probability during training
         #  - during testing, you need to have control over whether the conditioning is applied or not
@@ -287,9 +294,9 @@ class Unet(nn.Module):
             if self.training and torch.rand(1).item() < self.p_uncond:
                 c = self.class_embedder(class_labels)
             else:
-                c = nn.Parameter(torch.zeros_like(t))
+                c = repeat(self.null_classes_emb, 'd -> b d', b=batch)
         else:
-            c = nn.Parameter(torch.zeros_like(t))
+            c = repeat(self.null_classes_emb, 'd -> b d', b=batch)
 
         h = []
 

@@ -10,7 +10,7 @@ from pathlib import Path
 import os
 
 from ex02_model import Unet
-from ex02_diffusion import Diffusion, linear_beta_schedule
+from ex02_diffusion import Diffusion, linear_beta_schedule, cosine_beta_schedule, sigmoid_beta_schedule
 from torchvision.utils import save_image
 import matplotlib.pyplot as plt
 from ex02_helpers import num_to_groups
@@ -36,14 +36,15 @@ def parse_args():
 def sample_and_save_images(n_images, diffusor, model, device, store_path, transform=None):
     # TODO: Implement - adapt code and method signature as needed
 
-    class_label = diffusor.class_labels
-    class_label = torch.tensor(class_label, device=device).long()
+    class_labels = diffusor.class_labels
+    if class_labels is not None:
+        class_labels = torch.tensor(class_labels, device=device).long()
     image_size = diffusor.img_size
     channels = 3
 
     # sample 64 images from the model
     sampled_images = diffusor.sample(model, image_size=image_size, batch_size=n_images, channels=channels,
-                                     class_labels=class_label)
+                                     class_labels=class_labels)
 
     for t in range(diffusor.timesteps)[-3:-1]:
         # save the images
@@ -67,7 +68,7 @@ def test(model, testloader, diffusor, device, args):
         labels = labels.to(device)
 
         t = torch.randint(0, timesteps, (len(images),), device=device).long()
-        loss = diffusor.p_losses(model, images, t, noise=None, class_labels=None, loss_type="l2")
+        loss = diffusor.p_losses(model, images, t, noise=None, class_labels=labels, loss_type="l2")
 
         if step % args.log_interval == 0:
             print('Test Step: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
@@ -91,7 +92,7 @@ def train(model, trainloader, optimizer, diffusor, epoch, device, args):
 
         # Algorithm 1 line 3: sample t uniformly for every example in the batch
         t = torch.randint(0, timesteps, (len(images),), device=device).long()
-        loss = diffusor.p_losses(model, images, t, noise=None, class_labels=None, loss_type="l2")
+        loss = diffusor.p_losses(model, images, t, noise=None, class_labels=labels, loss_type="l2")
 
         loss.backward()
         optimizer.step()
@@ -104,9 +105,31 @@ def train(model, trainloader, optimizer, diffusor, epoch, device, args):
             break
 
 
-#def test(args):
+def test_test(args):
     # TODO (2.2): implement testing functionality, including generation of stored images.
-    #pass
+
+    # test beta schedules
+    timesteps = args.timesteps
+
+    # Standard linear schedule
+    linear_schedule = linear_beta_schedule(0.01, 1.0, timesteps)
+
+    # Cosine schedule
+    cosine_schedule = cosine_beta_schedule(timesteps)
+
+    # Sigmoid schedule
+    sigmoid_schedule = sigmoid_beta_schedule(0.01, 1.0, timesteps)
+
+    # Plotting
+    plt.figure(figsize=(10, 6))
+    plt.plot(linear_schedule, label='Linear Schedule')
+    plt.plot(cosine_schedule, label='Cosine Schedule')
+    plt.plot(sigmoid_schedule, label='Sigmoid Schedule')
+    plt.xlabel('Timesteps')
+    plt.ylabel('Beta Values')
+    plt.title('Comparison of Beta Schedulers')
+    plt.legend()
+    plt.show()
 
 
 def run(args):
@@ -117,10 +140,12 @@ def run(args):
     batch_size = args.batch_size
     device = "cuda" if not args.no_cuda and torch.cuda.is_available() else "cpu"
 
-    model = Unet(dim=image_size, channels=channels, dim_mults=(1, 2, 4,), class_free_guidance=False).to(device)
+    model = Unet(dim=image_size, channels=channels, dim_mults=(1, 2, 4,), class_free_guidance=True).to(device)
+
     optimizer = AdamW(model.parameters(), lr=args.lr)
 
     my_scheduler = lambda x: linear_beta_schedule(0.0001, 0.02, x)
+
     diffusor = Diffusion(timesteps, my_scheduler, image_size, device)
 
     # define image transformations (e.g. using torchvision)
@@ -156,8 +181,10 @@ def run(args):
     save_path.mkdir(exist_ok=True)
 
     n_images = 8
-    #sample_and_save_images(n_images, diffusor, model, device, save_path, reverse_transform)
+    sample_and_save_images(n_images, diffusor, model, device, save_path, reverse_transform)
 
+    # TODO (2.2):comparison of beta schedules
+    test_test(args)
     # Create the directory if it doesn't exist
     checkpoint_dir = os.path.join("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/models", args.run_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
