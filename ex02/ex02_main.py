@@ -21,7 +21,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train a neural network to diffuse images')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--timesteps', type=int, default=100, help='number of timesteps for diffusion model (default: 100)')
-    parser.add_argument('--epochs', type=int, default=5, help='number of epochs to train (default: 5)')
+    parser.add_argument('--epochs', type=int, default=1, help='number of epochs to train (default: 5)')
     parser.add_argument('--lr', type=float, default=0.003, help='learning rate (default: 0.003)')
     # parser.add_argument('--momentum', type=float, default=0.9, help='SGD momentum (default: 0.9)')
     parser.add_argument('--no_cuda', action='store_true', default=False, help='disables CUDA training')
@@ -177,7 +177,7 @@ def run(args):
 
     test(model, testloader, diffusor, device, args)
 
-    save_path = Path("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/generated_images")  # TODO: Adapt to your needs
+    save_path = Path("/proj/ciptmp/af23aduk/adl_ex02/generated_images")  # TODO: Adapt to your needs
     save_path.mkdir(exist_ok=True)
 
     n_images = 8
@@ -186,7 +186,7 @@ def run(args):
     # TODO (2.2):comparison of beta schedules
     test_test(args)
     # Create the directory if it doesn't exist
-    checkpoint_dir = os.path.join("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/models", args.run_name)
+    checkpoint_dir = os.path.join("/proj/ciptmp/af23aduk/adl_ex02/models", args.run_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     torch.save(model.state_dict(), os.path.join(checkpoint_dir, "ckpt.pt"))
