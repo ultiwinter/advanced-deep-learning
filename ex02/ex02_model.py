@@ -210,6 +210,7 @@ class Unet(nn.Module):
         # time embeddings
         time_dim = dim * 4
         self.null_token = nn.Parameter(torch.zeros(8,time_dim))
+        self.class_embedder = nn.Embedding(num_classes, time_dim)
 
         self.time_mlp = nn.Sequential(
             SinusoidalPositionEmbeddings(dim),

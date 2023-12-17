@@ -79,7 +79,7 @@ def train(model, trainloader, optimizer, diffusor, epoch, device, args):
     for step, (images, labels) in enumerate(pbar):
 
         images = images.to(device)
-        labels = labels
+        labels = labels.to(device)
         optimizer.zero_grad()
 
         # Algorithm 1 line 3: sample t uniformly for every example in the batch

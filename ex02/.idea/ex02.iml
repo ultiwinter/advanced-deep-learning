@@ -1,20 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<<<<<<< HEAD
-<module type="PYTHON_MODULE" version="4">
-  <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$" />
-    <orderEntry type="jdk" jdkName="Remote Python 3.9.16 (sftp://af23aduk@cip4d2.cip.cs.fau.de:22/proj/aimi-adl/envs/adl23_2/bin/python)" jdkType="Python SDK" />
-    <orderEntry type="sourceFolder" forTests="false" />
-  </component>
-  <component name="PyDocumentationSettings">
-    <option name="format" value="PLAIN" />
-    <option name="myDocStringFormat" value="Plain" />
-  </component>
-=======
 <module version="4">
   <component name="NewModuleRootManager">
     <orderEntry type="jdk" jdkName="Remote Python 3.9.16 (sftp://af23aduk@cip4d2.cip.cs.fau.de:22/proj/aimi-adl/envs/adl23_2/bin/python)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
->>>>>>> 7dac1b5 (adjusted, not class free guidance works)
 </module>
