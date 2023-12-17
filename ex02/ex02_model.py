@@ -186,8 +186,8 @@ class Unet(nn.Module):
         channels=3,
         resnet_block_groups=4,
         class_free_guidance=False,  # TODO: Incorporate in your code
-        p_uncond=None,
-        num_classes=None,
+        p_uncond=0.1,
+        num_classes=10,
     ):
         super().__init__()
 
@@ -195,6 +195,7 @@ class Unet(nn.Module):
         self.channels = channels
         input_channels = channels   # adapted from the original source
         self.p_uncond = p_uncond
+        self.num_classes = num_classes
 
         init_dim = default(init_dim, dim)
         self.init_conv = nn.Conv2d(input_channels, init_dim, 1, padding=0)  # changed to 1 and 0 from 7,3
@@ -218,8 +219,6 @@ class Unet(nn.Module):
 
         if class_free_guidance:
             self.class_embedder = nn.Embedding(num_classes, time_dim)
-        else:
-            self.class_embedder = nn.Parameter(torch.zeros(1, time_dim))
 
         # ======================================================
 
@@ -271,7 +270,7 @@ class Unet(nn.Module):
         self.final_res_block = block_klass(dim * 2, dim, time_emb_dim=time_dim, classes_emb_dim=time_dim)
         self.final_conv = nn.Conv2d(dim, self.out_dim, 1)
 
-    def forward(self, x, time, class_label=None):
+    def forward(self, x, time, class_labels=None):
 
         x = self.init_conv(x)
         r = x.clone()
@@ -283,16 +282,15 @@ class Unet(nn.Module):
         #  - during testing, you need to have control over whether the conditioning is applied or not
         #  - analogously to the time embedding, the class embedding is provided in every ResNet block as additional conditioning
 
-        if class_label is not None:
-            c = self.class_embedder(class_label)
+        if class_labels is not None:
 
-        # else:
-        #     if self.training and torch.rand(1).item() < self.p_uncond:
-        #         c = torch.zeros_like(self.class_embedder.weight)
-        #     else:
-        #         c = self.class_embedder(torch.zeros(1, dtype=torch.long))
+            if self.training and torch.rand(1).item() < self.p_uncond:
+                c = self.class_embedder(class_labels)
+            else:
+                c = nn.Parameter(torch.zeros_like(t))
         else:
-            c = self.class_embedder(class_label)
+            c = nn.Parameter(torch.zeros_like(t))
+
         h = []
 
         for block1, block2, attn, downsample in self.downs:

@@ -41,7 +41,7 @@ class Diffusion:
 
     # TODO (2.4): Adapt all methods in this class for the conditional case. You can use y=None to encode that you want to train the model fully unconditionally.
 
-    def __init__(self, timesteps, get_noise_schedule, img_size, device="cuda"):
+    def __init__(self, timesteps, get_noise_schedule, img_size, device="cuda", class_labels=None):
         """
         Takes the number of noising steps, a function for generating a noise schedule as well as the image size as input.
         """
@@ -49,7 +49,7 @@ class Diffusion:
 
         self.img_size = img_size
         self.device = device
-        # self.class_labels = class_labels
+        self.class_labels = class_labels
 
         # define beta schedule
         self.betas = get_noise_schedule(self.timesteps)
@@ -109,7 +109,7 @@ class Diffusion:
 
     # Algorithm 2 (including returning all images)
     @torch.no_grad()
-    def sample(self, model, image_size, batch_size=16, channels=3, class_label=None):
+    def sample(self, model, image_size, batch_size=16, channels=3, class_labels=None):
 
         # TODO (2.2): Implement the full reverse diffusion loop from random noise to an image, iteratively ''reducing'' the noise in the generated image.
         device = next(model.parameters()).device
@@ -120,10 +120,12 @@ class Diffusion:
         b = shape[0]
         # start from pure noise (for each example in the batch)
         img = torch.randn(shape, device=device)
+        class_labels = class_labels.to(device) if class_labels is not None else None
+
         imgs = []
 
         for i in tqdm(reversed(range(0, self.timesteps)), desc='sampling loop time step', total=self.timesteps):
-            img = self.p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i, class_label)
+            img = self.p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i, class_labels)
             imgs.append(img)
 
         # TODO (2.2): Return the generated images
@@ -142,13 +144,13 @@ class Diffusion:
 
         return sqrt_alphas_prod_t * x_zero + sqrt_one_minus_alphas_prod_t * noise
 
-    def p_losses(self, denoise_model, x_zero, t, noise=None, class_label=None, loss_type="l1"):
+    def p_losses(self, denoise_model, x_zero, t, noise=None, class_labels=None, loss_type="l1"):
         # TODO (2.2): compute the input to the network using the forward diffusion process and predict the noise using the model; if noise is None, you will need to create a new noise vector, otherwise use the provided one.
         if noise == None:
             noise = torch.randn_like(x_zero)
 
         x_noisy = self.q_sample(x_zero=x_zero, t=t, noise=noise)
-        predicted_noise = denoise_model(x_noisy, t, class_label)
+        predicted_noise = denoise_model(x_noisy, t, class_labels)
 
         if loss_type == 'l1':
             # TODO (2.2): implement an L1 loss for this task
