@@ -3,6 +3,9 @@ import torch.nn.functional as F
 from ex02_helpers import extract
 from tqdm import tqdm
 
+# The main problem with the linear scheduler is for small images.
+# The image is not far from pure Gaussian noise too early in the diffusing process,
+# which may make it hard for the model to learn the reverse process. Essentially, noise is being added too fast.
 
 def linear_beta_schedule(beta_start, beta_end, timesteps):
     """
@@ -12,6 +15,7 @@ def linear_beta_schedule(beta_start, beta_end, timesteps):
 
 
 # TODO: Transform into task for students
+# The cosine scheduler adds noise slower to retain image information for later timesteps.
 def cosine_beta_schedule(timesteps, s=0.008):
     """
     cosine schedule as proposed in https://arxiv.org/abs/2102.09672
@@ -33,8 +37,10 @@ def sigmoid_beta_schedule(beta_start, beta_end, timesteps):
     # TODO (2.3): Implement a sigmoidal beta schedule. Note: identify suitable limits of where you want to sample the sigmoid function.
     # Note that it saturates fairly fast for values -x << 0 << +x
 
-    betas = torch.linspace(-6, 6, timesteps)
-    return torch.sigmoid(betas) * (beta_end - beta_start) + beta_start
+    s_limit = 5
+
+    betas = torch.linspace(-s_limit, s_limit, timesteps)
+    return beta_start + torch.sigmoid(betas) * (beta_end - beta_start)
 
 
 class Diffusion:
@@ -49,6 +55,8 @@ class Diffusion:
 
         self.img_size = img_size
         self.device = device
+
+        # only for conditional case
         self.class_labels = class_labels
 
         # define beta schedule
@@ -64,7 +72,12 @@ class Diffusion:
         # TODO
         self.alphas = 1. - self.betas
         self.alphas_bar_prod = torch.cumprod(self.alphas, dim=0)
+
+        # It is common to pad sequences for various reasons, such as preparing data for
+        # convolutional operations or recurrent networks.
         self.alphas_bar_prod_prev = F.pad(self.alphas_bar_prod[:-1], (1, 0), value=1.0)
+
+        # For denoising preocess
         self.alphas_sqrt_recip = torch.sqrt(1.0 / self.alphas)
 
         # calculations for diffusion q(x_t | x_{t-1}) and others
@@ -74,8 +87,12 @@ class Diffusion:
 
         # calculations for posterior q(x_{t-1} | x_t, x_0)
         # TODO
+
+        # The last term for sqrt(beta)* z is zero
         self.posterior_variance = self.betas * (1. - self.alphas_bar_prod_prev) / (1. - self.alphas_bar_prod)
 
+
+    # for samplig (denoising process)
     @torch.no_grad()
     def p_sample(self, model, x, t, t_index, class_label=None, w=0.5):
         # TODO (2.2): implement the reverse diffusion process of the model for (noisy) samples x and timesteps t. Note that x and t both have a batch dimension
@@ -128,16 +145,21 @@ class Diffusion:
 
         for i in tqdm(reversed(range(0, self.timesteps)), desc='sampling loop time step', total=self.timesteps):
             img = self.p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i, class_labels)
-            imgs.append(img)
 
         # TODO (2.2): Return the generated images
-        return imgs
+        return img
 
     # forward diffusion (using the nice property)
     def q_sample(self, x_zero, t, noise=None):
         # TODO (2.2): Implement the forward diffusion process using the beta-schedule defined in the constructor; if noise is None, you will need to create a new noise vector, otherwise use the provided one.
         if noise is None:
             noise = torch.randn_like(x_zero)
+
+
+        #It extracts values from the tensor self.alphas_bar_sqrt at the indices specified in the index tensor t.
+        # The result is a tensor representing the square root of the product of alpha values up to
+        # time t for each element in the batch.
+        # Basically implementation of equation 5
 
         sqrt_alphas_prod_t = extract(self.alphas_bar_sqrt, t, x_zero.shape)
         sqrt_one_minus_alphas_prod_t = extract(

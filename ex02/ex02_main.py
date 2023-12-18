@@ -33,26 +33,23 @@ def parse_args():
     return parser.parse_args()
 
 
-def sample_and_save_images(n_images, diffusor, model, device, store_path, transform=None):
+def sample_and_save_images(n_images, diffusor, model, class_labels, device, store_path=None, transform=None):
     # TODO: Implement - adapt code and method signature as needed
 
-    class_labels = diffusor.class_labels
     if class_labels is not None:
         class_labels = torch.tensor(class_labels, device=device).long()
     image_size = diffusor.img_size
     channels = 3
 
-    # sample 64 images from the model
+    # sample images from the model
     sampled_images = diffusor.sample(model, image_size=image_size, batch_size=n_images, channels=channels,
                                      class_labels=class_labels)
 
-    for t in range(diffusor.timesteps)[-3:-1]:
-        # save the images
-        for image in range(sampled_images[0].shape[0]):
-            image_transform = transform(sampled_images[t][image])
-            plt.imshow(image_transform)
-            save_image(sampled_images[t][image], os.path.join(store_path, "sampled_image_{}_t_{}.png".format(image, t)))
-            plt.show()
+    for img_idx in range(n_images):
+        image_transform = transform(sampled_images[img_idx])
+        plt.imshow(image_transform)
+        save_image(sampled_images[img_idx], os.path.join(store_path, "sampled_image_{}.png".format(img_idx)))
+        plt.show()
 
 
 def test(model, testloader, diffusor, device, args):
@@ -98,6 +95,10 @@ def train(model, trainloader, optimizer, diffusor, epoch, device, args):
         optimizer.step()
 
         if step % args.log_interval == 0:
+            #n_images = 10
+            #labels = torch.zeros(n_images, device=device) + 1
+            #sample_and_save_images(n_images, diffusor, model, labels, device)
+
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, step * len(images), len(trainloader.dataset),
                 100. * step / len(trainloader), loss.item()))
@@ -146,6 +147,10 @@ def run(args):
 
     my_scheduler = lambda x: linear_beta_schedule(0.0001, 0.02, x)
 
+    # try out different beta schedules for example sigmoid_beta_schedule
+    # my_scheduler = lambda x: sigmoid_beta_schedule(0.0001, 0.02, x)
+    # my_scheduler = lambda x: cosine_beta_schedule(x)
+
     diffusor = Diffusion(timesteps, my_scheduler, image_size, device)
 
     # define image transformations (e.g. using torchvision)
@@ -177,16 +182,19 @@ def run(args):
 
     test(model, testloader, diffusor, device, args)
 
-    save_path = Path("/proj/ciptmp/af23aduk/adl_ex02/generated_images")  # TODO: Adapt to your needs
+    save_path = Path("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/generated_images")  # TODO: Adapt to your needs
     save_path.mkdir(exist_ok=True)
 
-    n_images = 8
-    sample_and_save_images(n_images, diffusor, model, device, save_path, reverse_transform)
+    n_images = 10
+    labels = list(range(n_images))
+    labels = torch.tensor(labels, device=device).long()
+    sample_and_save_images(n_images, diffusor, model, labels, device, save_path, reverse_transform)
+
 
     # TODO (2.2):comparison of beta schedules
     test_test(args)
     # Create the directory if it doesn't exist
-    checkpoint_dir = os.path.join("/proj/ciptmp/af23aduk/adl_ex02/models", args.run_name)
+    checkpoint_dir = os.path.join("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/models", args.run_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     torch.save(model.state_dict(), os.path.join(checkpoint_dir, "ckpt.pt"))

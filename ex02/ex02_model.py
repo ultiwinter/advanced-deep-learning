@@ -195,7 +195,7 @@ class Unet(nn.Module):
         # determine dimensions
         self.channels = channels
         input_channels = channels   # adapted from the original source
-
+        self.class_free_guidance = class_free_guidance
         # For classifier free guidance
         self.p_uncond = p_uncond
 
@@ -222,7 +222,7 @@ class Unet(nn.Module):
 
         # TODO: Implement a class embedder for the conditional part of the classifier-free guidance & define a default
 
-        if class_free_guidance:
+        if self.class_free_guidance:
             self.class_embedder = nn.Embedding(num_classes, time_dim)
             self.null_classes_emb = nn.Parameter(torch.randn(time_dim))
 
@@ -233,6 +233,10 @@ class Unet(nn.Module):
         self.ups = nn.ModuleList([])
         num_resolutions = len(in_out)
 
+        class_emb_var = 0
+        if self.class_free_guidance:
+            class_emb_var = time_dim
+
         # TODO: Adapt all blocks accordingly such that they can accommodate a class embedding as well
         for ind, (dim_in, dim_out) in enumerate(in_out):
             is_last = ind >= (num_resolutions - 1)
@@ -240,8 +244,8 @@ class Unet(nn.Module):
             self.downs.append(
                 nn.ModuleList(
                     [
-                        block_klass(dim_in, dim_in, time_emb_dim=time_dim, classes_emb_dim=time_dim),
-                        block_klass(dim_in, dim_in, time_emb_dim=time_dim, classes_emb_dim=time_dim),
+                        block_klass(dim_in, dim_in, time_emb_dim=time_dim, classes_emb_dim=class_emb_var),
+                        block_klass(dim_in, dim_in, time_emb_dim=time_dim, classes_emb_dim=class_emb_var),
                         Residual(PreNorm(dim_in, LinearAttention(dim_in))),
                         Downsample(dim_in, dim_out)
                         if not is_last
@@ -251,9 +255,9 @@ class Unet(nn.Module):
             )
 
         mid_dim = dims[-1]
-        self.mid_block1 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim, classes_emb_dim=time_dim)
+        self.mid_block1 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim, classes_emb_dim=class_emb_var)
         self.mid_attn = Residual(PreNorm(mid_dim, Attention(mid_dim)))
-        self.mid_block2 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim, classes_emb_dim=time_dim)
+        self.mid_block2 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim, classes_emb_dim=class_emb_var)
 
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out)):
             is_last = ind == (len(in_out) - 1)
@@ -261,8 +265,8 @@ class Unet(nn.Module):
             self.ups.append(
                 nn.ModuleList(
                     [
-                        block_klass(dim_out + dim_in, dim_out, time_emb_dim=time_dim, classes_emb_dim=time_dim),
-                        block_klass(dim_out + dim_in, dim_out, time_emb_dim=time_dim, classes_emb_dim=time_dim),
+                        block_klass(dim_out + dim_in, dim_out, time_emb_dim=time_dim, classes_emb_dim=class_emb_var),
+                        block_klass(dim_out + dim_in, dim_out, time_emb_dim=time_dim, classes_emb_dim=class_emb_var),
                         Residual(PreNorm(dim_out, LinearAttention(dim_out))),
                         Upsample(dim_out, dim_in)
                         if not is_last
@@ -273,7 +277,7 @@ class Unet(nn.Module):
 
         self.out_dim = default(out_dim, channels)
 
-        self.final_res_block = block_klass(dim * 2, dim, time_emb_dim=time_dim, classes_emb_dim=time_dim)
+        self.final_res_block = block_klass(dim * 2, dim, time_emb_dim=time_dim, classes_emb_dim=class_emb_var)
         self.final_conv = nn.Conv2d(dim, self.out_dim, 1)
 
     def forward(self, x, time, class_label=None):
@@ -291,8 +295,7 @@ class Unet(nn.Module):
         #  - during testing, you need to have control over whether the conditioning is applied or not
         #  - analogously to the time embedding, the class embedding is provided in every ResNet block as additional conditioning
 
-
-        if class_label is not None:
+        if class_label is not None and self.class_free_guidance:
             # randomly chosen using p_uncond probability of choosing whether to use the class label or give the
             if self.training:
                 if random.choices([True, False], weights=[1 - self.p_uncond, self.p_uncond], k=1)[0]:
@@ -300,18 +303,9 @@ class Unet(nn.Module):
                 else:
                     c = nn.Parameter(torch.zeros_like(t))
             else:
-<<<<<<< HEAD
-                c = repeat(self.null_classes_emb, 'd -> b d', b=batch)
+                c = self.class_embedder(class_label)
         else:
-            c = repeat(self.null_classes_emb, 'd -> b d', b=batch)
-=======
-
-                # null token
-                c = nn.Parameter(torch.zeros_like(t))
-        else:
-            # if class label is not provided, use the default null token
-            c = nn.Parameter(torch.zeros_like(t))
->>>>>>> 181bded5424f8506f1245ff83b8ea05675acee8b
+            c = None
 
         h = []
 
