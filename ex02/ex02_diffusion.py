@@ -27,7 +27,7 @@ def cosine_beta_schedule(timesteps, s=0.008):
     alphas_cumprod = torch.cos(((x / timesteps) + s) / (1 + s) * torch.pi * 0.5) ** 2
     alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
     betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
-    return torch.clip(betas, 0.0001, 0.9999)
+    return torch.clip(betas, min=0.0001, max=0.9999)
 
 
 def sigmoid_beta_schedule(beta_start, beta_end, timesteps):
@@ -37,7 +37,7 @@ def sigmoid_beta_schedule(beta_start, beta_end, timesteps):
     # TODO (2.3): Implement a sigmoidal beta schedule. Note: identify suitable limits of where you want to sample the sigmoid function.
     # Note that it saturates fairly fast for values -x << 0 << +x
 
-    s_limit = 5
+    s_limit = 6
 
     betas = torch.linspace(-s_limit, s_limit, timesteps)
     return beta_start + torch.sigmoid(betas) * (beta_end - beta_start)
@@ -148,11 +148,13 @@ class Diffusion:
         img = torch.randn(shape, device=device)
         class_labels = class_labels.to(device) if class_labels is not None else None
 
+        imgs = []
+
         for i in tqdm(reversed(range(0, self.timesteps)), desc='sampling loop time step', total=self.timesteps):
             img = self.p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i, class_labels)
-
+            imgs.append(img)
         # TODO (2.2): Return the generated images
-        return img
+        return imgs
 
     # forward diffusion (using the nice property)
     def q_sample(self, x_zero, t, noise=None):

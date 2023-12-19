@@ -8,7 +8,7 @@ from tqdm import tqdm
 import numpy as np
 from pathlib import Path
 import os
-
+import matplotlib.animation as animation
 from ex02_model import Unet
 from ex02_diffusion import Diffusion, linear_beta_schedule, cosine_beta_schedule, sigmoid_beta_schedule
 from torchvision.utils import save_image
@@ -53,11 +53,14 @@ def sample_and_save_images(n_images, diffusor, model, device, class_labels=None,
     sampled_images = diffusor.sample(model, image_size=image_size, batch_size=n_images, channels=channels,
                                      class_labels=class_labels)
 
+    # pick the last timestep
+    last_timestep = -1
     for img_idx in range(n_images):
-        image_transform = reverse_transform(sampled_images[img_idx])
+        image_transform = reverse_transform(sampled_images[last_timestep][img_idx])
         plt.imshow(image_transform)
         #save_image(sampled_images[img_idx], os.path.join(store_path, "sampled_image_{}.png".format(img_idx)))
         plt.show()
+    return sampled_images
 
 
 def test(model, testloader, diffusor, device, args):
@@ -114,9 +117,9 @@ def train(model, trainloader, optimizer, diffusor, epoch, device, args):
             break
 
 
-def test_test(args):
-    # TODO (2.2): implement testing functionality, including generation of stored images.
+def beta_show(args):
 
+    # TODO (2.2):comparison of beta schedules
     # test beta schedules
     timesteps = args.timesteps
 
@@ -149,6 +152,36 @@ def test_test(args):
     plt.savefig(os.path.join(checkpoint_dir, "beta_schedulers.png"))
 
 
+def add_visualization(timesteps, image_size, channels, sampled_images):
+    # TODO (2.2): Add visualization capabilities
+
+    reverse_transform = Compose([
+        Lambda(lambda t: (t.clamp(-1, 1) + 1) / 2),
+        Lambda(lambda t: t.permute(1, 2, 0)),  # CHW to HWC
+        Lambda(lambda t: t * 255.),
+        Lambda(lambda t: t.cpu().numpy().astype(np.uint8)),
+        ToPILImage(),
+    ])
+
+    random_index = 5
+
+    fig = plt.figure()
+    ims = []
+    for i in range(timesteps):
+        im = plt.imshow(reverse_transform(sampled_images[i][random_index]), cmap="gray", animated=True)
+        ims.append([im])
+
+    animate = animation.ArtistAnimation(fig, ims, interval=50, blit=True, repeat_delay=1000)
+
+    # create a directory for the GIFs
+    # Create the directory if it doesn't exist
+    gifs_dir = os.path.join("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/GIFs")
+    checkpoint_dir = os.path.join(gifs_dir, args.run_name)
+    os.makedirs(checkpoint_dir, exist_ok=True)
+
+    animate.save(os.path.join(checkpoint_dir, "diffusion.gif"))
+    plt.show()
+
 
 def run(args):
     timesteps = args.timesteps
@@ -165,8 +198,8 @@ def run(args):
     #my_scheduler = lambda x: linear_beta_schedule(0.0001, 0.02, x)
 
     # try out different beta schedules for example sigmoid_beta_schedule
-    # my_scheduler = lambda x: sigmoid_beta_schedule(0.0001, 0.02, x)
-    my_scheduler = lambda x: cosine_beta_schedule(x)
+    my_scheduler = lambda x: sigmoid_beta_schedule(0.0001, 0.02, x)
+    #my_scheduler = lambda x: cosine_beta_schedule(x)
 
     diffusor = Diffusion(timesteps, my_scheduler, image_size, device)
 
@@ -205,10 +238,10 @@ def run(args):
     n_images = 10
     labels = list(range(n_images))
     labels = torch.tensor(labels, device=device).long()
-    sample_and_save_images(n_images, diffusor, model, device, labels, save_path)
+    sampled_images = sample_and_save_images(n_images, diffusor, model, device, labels, save_path)
 
-    # TODO (2.2):comparison of beta schedules
-    test_test(args)
+    add_visualization(timesteps, image_size, channels, sampled_images)
+
     # Create the directory if it doesn't exist
     checkpoint_dir = os.path.join("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/models", args.run_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
@@ -219,5 +252,6 @@ def run(args):
 if __name__ == '__main__':
     args = parse_args()
     # TODO (2.2): Add visualization capabilities
+    beta_show(args)
     run(args)
 
