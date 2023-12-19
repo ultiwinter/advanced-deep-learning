@@ -211,7 +211,6 @@ class Unet(nn.Module):
 
         # time embeddings
         time_dim = dim * 4
-        self.class_embedder = nn.Embedding(num_classes, time_dim)
 
         self.time_mlp = nn.Sequential(
             SinusoidalPositionEmbeddings(dim),
@@ -224,7 +223,6 @@ class Unet(nn.Module):
 
         if self.class_free_guidance:
             self.class_embedder = nn.Embedding(num_classes, time_dim)
-            self.null_classes_emb = nn.Parameter(torch.randn(time_dim))
 
         # ======================================================
 
@@ -233,7 +231,7 @@ class Unet(nn.Module):
         self.ups = nn.ModuleList([])
         num_resolutions = len(in_out)
 
-        class_emb_var = 0
+        class_emb_var = None
         if self.class_free_guidance:
             class_emb_var = time_dim
 
@@ -305,7 +303,7 @@ class Unet(nn.Module):
             else:
                 c = self.class_embedder(class_label)
         else:
-            c = None
+            c = nn.Parameter(torch.zeros_like(t))
 
         h = []
 
