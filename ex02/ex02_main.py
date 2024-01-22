@@ -58,7 +58,11 @@ def sample_and_save_images(n_images, diffusor, model, device, class_labels=None,
     for img_idx in range(n_images):
         image_transform = reverse_transform(sampled_images[last_timestep][img_idx])
         plt.imshow(image_transform)
-        #save_image(sampled_images[img_idx], os.path.join(store_path, "sampled_image_{}.png".format(img_idx)))
+        #save_image(sampled_images[last_timestep][img_idx], os.path.join(store_path, "sampled_image_{}.png".format(img_idx)))
+
+        # save the transformed image
+        image_transform.save(os.path.join(store_path, "sampled_image_{}.png".format(img_idx)))
+
         plt.show()
     return sampled_images
 
@@ -108,7 +112,7 @@ def train(model, trainloader, optimizer, diffusor, epoch, device, args):
         if step % args.log_interval == 0:
             # n_images = 10
             # labels_sample = torch.zeros(n_images, device=device) + 1
-            # sample_and_save_images(n_images, diffusor, model, device, class_labels=None)
+            # sample_and_save_images(n_images, diffusor, model, device, class_labels=labels_sample)
 
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, step * len(images), len(trainloader.dataset),
@@ -179,7 +183,7 @@ def add_visualization(timesteps, image_size, channels, sampled_images):
     checkpoint_dir = os.path.join(gifs_dir, args.run_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
-    animate.save(os.path.join(checkpoint_dir, "diffusion.gif"))
+    animate.save(os.path.join(checkpoint_dir, "diffusion_last.gif"))
     plt.show()
 
 
@@ -199,7 +203,7 @@ def run(args):
 
     # try out different beta schedules for example sigmoid_beta_schedule
     my_scheduler = lambda x: sigmoid_beta_schedule(0.0001, 0.02, x)
-    #my_scheduler = lambda x: cosine_beta_schedule(x)
+    # my_scheduler = lambda x: cosine_beta_schedule(x)
 
     diffusor = Diffusion(timesteps, my_scheduler, image_size, device)
 
@@ -236,9 +240,9 @@ def run(args):
     save_path.mkdir(exist_ok=True)
 
     n_images = 10
-    labels = list(range(n_images))
-    labels = torch.tensor(labels, device=device).long()
-    sampled_images = sample_and_save_images(n_images, diffusor, model, device, labels, save_path)
+    #labels = list(range(n_images))
+    #labels = torch.tensor(labels, device=device).long()
+    sampled_images = sample_and_save_images(n_images, diffusor, model, device, None, save_path)
 
     add_visualization(timesteps, image_size, channels, sampled_images)
 

@@ -16,6 +16,10 @@ def linear_beta_schedule(beta_start, beta_end, timesteps):
 
 # TODO: Transform into task for students
 # The cosine scheduler adds noise slower to retain image information for later timesteps.
+# As you can see, the linear scheduler on the right converges to an αₜ_bar value of 0 early in the diffusing process,
+# meaning the image will be nearly pure gaussian noise early in the diffusing process.
+# The cosine scheduler, on the other hand, converges to 0 much later.
+
 def cosine_beta_schedule(timesteps, s=0.008):
     """
     cosine schedule as proposed in https://arxiv.org/abs/2102.09672
@@ -85,6 +89,7 @@ class Diffusion:
         # calculations for posterior q(x_{t-1} | x_t, x_0)
         # TODO
 
+        # Based on the formula for calculating the posterior variance
         # The last term for sqrt(beta)* z is zero
         self.posterior_variance = self.betas * (1. - self.alphas_bar_prod_prev) / (1. - self.alphas_bar_prod)
 
