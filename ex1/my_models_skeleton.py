@@ -66,7 +66,7 @@ class Attention(nn.Module):
         # TODO
         self.to_out = nn.Linear(dim_head * heads, dim, bias=False)
 
-    def forward(self, x, context=None, kv_include_self=True):
+    def forward(self, x, context=None, kv_include_self=False):
         # now compute the attention/cross-attention
         # in cross attention: x = class token, context = token embeddings
         # don't forget the dropout after the attention 
@@ -80,30 +80,30 @@ class Attention(nn.Module):
             # cross attention requires CLS token includes itself as key / value
             context = torch.cat((x, context), dim=1)
 
-            # # TODO: attention
-            q = self.to_q(x)
-            k, v = self.to_vk(context).chunk(2, dim=-1)
-            # reshape q, k, v
+        # # TODO: attention
+        q = self.to_q(x)
+        k, v = self.to_vk(context).chunk(2, dim=-1)
+        # reshape q, k, v
 
-            q = rearrange(q, 'b n (h d) -> b h n d', h=h)
-            k = rearrange(k, 'b n (h d) -> b h n d', h=h)
-            v = rearrange(v, 'b n (h d) -> b h n d', h=h)
-            # compute attention
+        q = rearrange(q, 'b n (h d) -> b h n d', h=h)
+        k = rearrange(k, 'b n (h d) -> b h n d', h=h)
+        v = rearrange(v, 'b n (h d) -> b h n d', h=h)
+        # compute attention
 
-            dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
-            # apply softmax
+        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+        # apply softmax
 
-            attn = self.softmax(dots)
-            # apply dropout
-            attn = self.dropout(attn)
-            # multiply w. v
-            out = torch.matmul(attn, v)
-            # reshape out
-            out = rearrange(out, 'b h n d -> b n (h d)')
-            # apply output linear layer
-            out = self.to_out(out)
+        attn = self.softmax(dots)
+        # apply dropout
+        attn = self.dropout(attn)
+        # multiply w. v
+        out = torch.matmul(attn, v)
+        # reshape out
+        out = rearrange(out, 'b h n d -> b n (h d)')
+        # apply output linear layer
+        out = self.to_out(out)
 
-            return out  # N, D
+        return out  # N, D
 
     # ViT & CrossViT
 
@@ -160,7 +160,7 @@ class ProjectInOut(nn.Module):
         # project the input
         x = self.project_in(x)
         # apply fn
-        x = self.fn(x, *args, **kwargs)
+        x = self.fn(x, *args, **kwargs) + x
         # The output of the fn is projected back to the original shape
         x = self.project_out(x)
 
@@ -195,8 +195,8 @@ class CrossTransformer(nn.Module):
         # 2. large cls token to small patches
         # TODO
         for attn_sm, attn_lg in self.layers:
-            sm_cls = attn_sm(sm_cls, context=lg_patch_tokens, kv_include_self=True) + sm_cls
-            lg_cls = attn_lg(lg_cls, context=sm_patch_tokens, kv_include_self=True) + lg_cls
+            sm_cls = attn_sm(sm_cls, context=lg_patch_tokens, kv_include_self=True)
+            lg_cls = attn_lg(lg_cls, context=sm_patch_tokens, kv_include_self=True)
 
         # finally concat sm/lg cls tokens with patch tokens 
         # TODO

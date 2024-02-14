@@ -67,17 +67,17 @@ def test(model, device, test_loader, criterion, set="Test"):
 def run(args):
     # Download and load the training data
     train_transform = transforms.Compose([transforms.RandomHorizontalFlip(p=0.5),
-                                          transforms.RandomCrop(32, padding=4),
+                                          #transforms.RandomCrop(64, padding=4),
                                           transforms.ToTensor(),
                                           # ImageNet mean/std values should also fit okayish for CIFAR
-                                          transforms.Normalize([0, 0, 0], [1, 1, 1])])
+                                          transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
 
     test_transform = transforms.Compose([transforms.ToTensor(),
                                          # ImageNet mean/std values should also fit okayish for CIFAR
-                                         transforms.Normalize([0, 0, 0], [1, 1, 1])])
+                                         transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
 
-    # TODO: adjust folder
-    dataset = datasets.CIFAR10(r'/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/dataset/cifar10',
+    #TODO: adjust folder - >
+    dataset = datasets.CIFAR10(r'datasets',
                                download=True, train=True, transform=train_transform)
     trainset, valset = torch.utils.data.random_split(dataset,
                                                      [int(len(dataset) * 0.9), len(dataset) - int(len(dataset) * 0.9)])
@@ -86,7 +86,7 @@ def run(args):
 
     # Download and load the test data
     # TODO: adjust folder
-    testset = datasets.CIFAR10(r'/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/dataset/cifar10',
+    testset = datasets.CIFAR10(r'datasets',
                                download=True, train=False, transform=test_transform)
     testloader = DataLoader(testset, batch_size=64, shuffle=True)
 
