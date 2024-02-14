@@ -20,8 +20,8 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a neural network to diffuse images')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
-    parser.add_argument('--timesteps', type=int, default=100, help='number of timesteps for diffusion model (default: 100)')
-    parser.add_argument('--epochs', type=int, default=1, help='number of epochs to train (default: 5)')
+    parser.add_argument('--timesteps', type=int, default=700, help='number of timesteps for diffusion model (default: 100)')
+    parser.add_argument('--epochs', type=int, default=50, help='number of epochs to train (default: 5)')
     parser.add_argument('--lr', type=float, default=0.003, help='learning rate (default: 0.003)')
     # parser.add_argument('--momentum', type=float, default=0.9, help='SGD momentum (default: 0.9)')
     parser.add_argument('--no_cuda', action='store_true', default=False, help='disables CUDA training')
@@ -58,7 +58,7 @@ def sample_and_save_images(n_images, diffusor, model, device, class_labels=None,
     for img_idx in range(n_images):
         image_transform = reverse_transform(sampled_images[last_timestep][img_idx])
         plt.imshow(image_transform)
-        #save_image(sampled_images[img_idx], os.path.join(store_path, "sampled_image_{}.png".format(img_idx)))
+        save_image(sampled_images[img_idx], os.path.join(store_path, "sampled_image_{}.png".format(img_idx)))
         plt.show()
     return sampled_images
 
@@ -146,7 +146,7 @@ def beta_show(args):
     # save the plot in a folder called plots
     # Create the directory if it doesn't exist
 
-    plot_dir = os.path.join("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/plots")
+    plot_dir = os.path.join("/proj/ciptmp/af23aduk/adl_ex02/classfreeFalse/plots")
     checkpoint_dir = os.path.join(plot_dir, args.run_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
     plt.savefig(os.path.join(checkpoint_dir, "beta_schedulers.png"))
@@ -175,7 +175,7 @@ def add_visualization(timesteps, image_size, channels, sampled_images):
 
     # create a directory for the GIFs
     # Create the directory if it doesn't exist
-    gifs_dir = os.path.join("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/GIFs")
+    gifs_dir = os.path.join("/proj/ciptmp/af23aduk/adl_ex02/classfreeFalse/GIFs")
     checkpoint_dir = os.path.join(gifs_dir, args.run_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
@@ -191,7 +191,7 @@ def run(args):
     batch_size = args.batch_size
     device = "cuda" if not args.no_cuda and torch.cuda.is_available() else "cpu"
 
-    model = Unet(dim=image_size, channels=channels, dim_mults=(1, 2, 4,), class_free_guidance=True).to(device)
+    model = Unet(dim=image_size, channels=channels, dim_mults=(1, 2, 4,), class_free_guidance=False).to(device)
 
     optimizer = AdamW(model.parameters(), lr=args.lr)
 
@@ -232,7 +232,7 @@ def run(args):
 
     test(model, testloader, diffusor, device, args)
 
-    save_path = Path("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/generated_images")  # TODO: Adapt to your needs
+    save_path = Path("/proj/ciptmp/af23aduk/adl_ex02/classfreeFalse/generated_images")  # TODO: Adapt to your needs
     save_path.mkdir(exist_ok=True)
 
     n_images = 10
@@ -243,7 +243,7 @@ def run(args):
     add_visualization(timesteps, image_size, channels, sampled_images)
 
     # Create the directory if it doesn't exist
-    checkpoint_dir = os.path.join("/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning/models", args.run_name)
+    checkpoint_dir = os.path.join("/proj/ciptmp/af23aduk/adl_ex02/classfreeFalse/models", args.run_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     torch.save(model.state_dict(), os.path.join(checkpoint_dir, "ckpt.pt"))

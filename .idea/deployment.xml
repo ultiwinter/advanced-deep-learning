@@ -1,19 +1,75 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="ez72oxib@cip7b1.cip.cs.fau.de:22 password" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="af23aduk@cip4d2.cip.cs.fau.de:22 (10)" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
     <option name="confirmBeforeUploading" value="false" />
     <serverData>
-      <paths name="ez72oxib@cip7b1.cip.cs.fau.de:22 password">
+      <paths name="af23aduk@cip4d2.cip.cs.fau.de:22">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning" local="$PROJECT_DIR$" />
+            <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
-      <paths name="ez72oxib@cip7g1.cip.cs.fau.de:22 password">
+      <paths name="af23aduk@cip4d2.cip.cs.fau.de:22 (10)">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/cip/medtech2021/ez72oxib/Desktop/AdvancedDeepLearning" local="$PROJECT_DIR$" />
+            <mapping deploy="/tmp/pycharm_project_322" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="af23aduk@cip4d2.cip.cs.fau.de:22 (2)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="af23aduk@cip4d2.cip.cs.fau.de:22 (3)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="af23aduk@cip4d2.cip.cs.fau.de:22 (4)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="af23aduk@cip4d2.cip.cs.fau.de:22 (5)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="af23aduk@cip4d2.cip.cs.fau.de:22 (6)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/proj/ciptmp/af23aduk/adl_ex02" local="$PROJECT_DIR$/ex02" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="af23aduk@cip4d2.cip.cs.fau.de:22 (7)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/tmp/pycharm_project_648" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="af23aduk@cip4d2.cip.cs.fau.de:22 (8)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/tmp/pycharm_project_849" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="af23aduk@cip4d2.cip.cs.fau.de:22 (9)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/tmp/pycharm_project_294" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>

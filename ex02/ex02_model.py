@@ -293,17 +293,20 @@ class Unet(nn.Module):
         #  - during testing, you need to have control over whether the conditioning is applied or not
         #  - analogously to the time embedding, the class embedding is provided in every ResNet block as additional conditioning
 
-        if class_label is not None and self.class_free_guidance:
-            # randomly chosen using p_uncond probability of choosing whether to use the class label or give the
-            if self.training:
-                if random.choices([True, False], weights=[1 - self.p_uncond, self.p_uncond], k=1)[0]:
-                    c = self.class_embedder(class_label)
+        if self.class_free_guidance:
+            if class_label is not None:
+                # randomly chosen using p_uncond probability of choosing whether to use the class label or give the
+                if self.training:
+                    if random.choices([True, False], weights=[1 - self.p_uncond, self.p_uncond], k=1)[0]:
+                        c = self.class_embedder(class_label)
+                    else:
+                        c = nn.Parameter(torch.zeros_like(t))
                 else:
-                    c = nn.Parameter(torch.zeros_like(t))
+                    c = self.class_embedder(class_label)
             else:
-                c = self.class_embedder(class_label)
+                c = nn.Parameter(torch.zeros_like(t))
         else:
-            c = nn.Parameter(torch.zeros_like(t))
+            c = None
 
         h = []
 
