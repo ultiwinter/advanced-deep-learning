@@ -3,6 +3,9 @@ import torch.nn.functional as F
 from ex02_helpers import extract
 from tqdm import tqdm
 
+# The main problem with the linear scheduler is for small images.
+# The image is not far from pure Gaussian noise too early in the diffusing process,
+# which may make it hard for the model to learn the reverse process. Essentially, noise is being added too fast.
 
 def linear_beta_schedule(beta_start, beta_end, timesteps):
     """
@@ -12,6 +15,11 @@ def linear_beta_schedule(beta_start, beta_end, timesteps):
 
 
 # TODO: Transform into task for students
+# The cosine scheduler adds noise slower to retain image information for later timesteps.
+# As you can see, the linear scheduler on the right converges to an αₜ_bar value of 0 early in the diffusing process,
+# meaning the image will be nearly pure gaussian noise early in the diffusing process.
+# The cosine scheduler, on the other hand, converges to 0 much later.
+
 def cosine_beta_schedule(timesteps, s=0.008):
     """
     cosine schedule as proposed in https://arxiv.org/abs/2102.09672
@@ -20,10 +28,10 @@ def cosine_beta_schedule(timesteps, s=0.008):
 
     steps = timesteps + 1
     x = torch.linspace(0, timesteps, steps)
-    alphas_prod = torch.cos(((x / timesteps) + s) / (1 + s) * torch.pi * 0.5) ** 2
-    alphas_prod = alphas_prod / alphas_prod[0]
-    betas = 1 - (alphas_prod[1:] / alphas_prod[:-1])
-    return torch.clip(betas, 0.0001, 0.9999)
+    alphas_cumprod = torch.cos(((x / timesteps) + s) / (1 + s) * torch.pi * 0.5) ** 2
+    alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
+    betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
+    return torch.clip(betas, min=0.0001, max=0.9999)
 
 
 def sigmoid_beta_schedule(beta_start, beta_end, timesteps):
@@ -33,8 +41,10 @@ def sigmoid_beta_schedule(beta_start, beta_end, timesteps):
     # TODO (2.3): Implement a sigmoidal beta schedule. Note: identify suitable limits of where you want to sample the sigmoid function.
     # Note that it saturates fairly fast for values -x << 0 << +x
 
-    betas = torch.linspace(-6, 6, timesteps)
-    return torch.sigmoid(betas) * (beta_end - beta_start) + beta_start
+    s_limit = 6
+
+    betas = torch.linspace(-s_limit, s_limit, timesteps)
+    return beta_start + torch.sigmoid(betas) * (beta_end - beta_start)
 
 
 class Diffusion:
@@ -49,10 +59,15 @@ class Diffusion:
 
         self.img_size = img_size
         self.device = device
+<<<<<<< HEAD
         self.class_labels = class_labels
+=======
+>>>>>>> main
 
         # define beta schedule
         self.betas = get_noise_schedule(self.timesteps)
+
+        print(self.betas.shape)
 
         # TODO (2.2): Compute the central values for the equation in the forward pass already here so you can quickly use them in the forward pass.
         # Note that the function torch.cumprod may be of help
@@ -62,7 +77,12 @@ class Diffusion:
         # TODO
         self.alphas = 1. - self.betas
         self.alphas_bar_prod = torch.cumprod(self.alphas, dim=0)
+
+        # It is common to pad sequences for various reasons, such as preparing data for
+        # convolutional operations or recurrent networks.
         self.alphas_bar_prod_prev = F.pad(self.alphas_bar_prod[:-1], (1, 0), value=1.0)
+
+        # For denoising preocess
         self.alphas_sqrt_recip = torch.sqrt(1.0 / self.alphas)
 
         # calculations for diffusion q(x_t | x_{t-1}) and others
@@ -72,10 +92,15 @@ class Diffusion:
 
         # calculations for posterior q(x_{t-1} | x_t, x_0)
         # TODO
+
+        # Based on the formula for calculating the posterior variance
+        # The last term for sqrt(beta)* z is zero
         self.posterior_variance = self.betas * (1. - self.alphas_bar_prod_prev) / (1. - self.alphas_bar_prod)
 
+
+    # for samplig (denoising process)
     @torch.no_grad()
-    def p_sample(self, model, x, t, t_index):
+    def p_sample(self, model, x, t, t_index, class_label=None, w=0.5):
         # TODO (2.2): implement the reverse diffusion process of the model for (noisy) samples x and timesteps t. Note that x and t both have a batch dimension
 
         # Equation 11 in the paper
@@ -90,8 +115,17 @@ class Diffusion:
 
         # Equation 11 in the paper
         # Use our model (noise predictor) to predict the mean
+
+        model_prediction = model(x, t)
+
+        if class_label is not None:
+            # model prediction with the conditional guidance
+            model_prediction_guid = model(x, t, class_label)
+            # combined model prediction
+            model_prediction = (1 + w) * model_prediction_guid - w * model_prediction
+
         model_mean = sqrt_recip_alphas_t * (
-                x - betas_t * model(x, t, self.class_labels) / one_minus_alphas_bar_sqrt_t
+                x - betas_t * model_prediction / one_minus_alphas_bar_sqrt_t
         )
 
         if t_index == 0:
@@ -100,12 +134,17 @@ class Diffusion:
             posterior_variance_t = extract(self.posterior_variance, t, x.shape)
             noise = torch.randn_like(x)
             # Algorithm 2 line 4:
-            return model_mean + torch.sqrt(posterior_variance_t) * noise
 
+            # Apply the conditional guidance according to Equation 11
+            #conditional_mean = (1 + w) * model_mean - w * x
+
+            # Algorithm 2 line 4:
+            # return conditional_mean + torch.sqrt(posterior_variance_t) * noise
+            return model_mean + torch.sqrt(posterior_variance_t) * noise
 
     # Algorithm 2 (including returning all images)
     @torch.no_grad()
-    def sample(self, model, image_size, batch_size=16, channels=3):
+    def sample(self, model, image_size, batch_size=16, channels=3, class_labels=None):
 
         # TODO (2.2): Implement the full reverse diffusion loop from random noise to an image, iteratively ''reducing'' the noise in the generated image.
         device = next(model.parameters()).device
@@ -116,21 +155,34 @@ class Diffusion:
         b = shape[0]
         # start from pure noise (for each example in the batch)
         img = torch.randn(shape, device=device)
+        class_labels = class_labels.to(device) if class_labels is not None else None
+
         imgs = []
 
         for i in tqdm(reversed(range(0, self.timesteps)), desc='sampling loop time step', total=self.timesteps):
+<<<<<<< HEAD
             print(i)
             img = self.p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i, class_label)
+=======
+            img = self.p_sample(model, img, torch.full((b,), i, device=device, dtype=torch.long), i, class_labels)
+>>>>>>> main
             imgs.append(img)
-
         # TODO (2.2): Return the generated images
         return imgs
 
     # forward diffusion (using the nice property)
     def q_sample(self, x_zero, t, noise=None):
         # TODO (2.2): Implement the forward diffusion process using the beta-schedule defined in the constructor; if noise is None, you will need to create a new noise vector, otherwise use the provided one.
+
+        # generate random gaussian noise
         if noise is None:
             noise = torch.randn_like(x_zero)
+
+
+        #It extracts values from the tensor self.alphas_bar_sqrt at the indices specified in the index tensor t.
+        # The result is a tensor representing the square root of the product of alpha values up to
+        # time t for each element in the batch.
+        # Basically implementation of equation 5
 
         sqrt_alphas_prod_t = extract(self.alphas_bar_sqrt, t, x_zero.shape)
         sqrt_one_minus_alphas_prod_t = extract(
@@ -139,20 +191,28 @@ class Diffusion:
 
         return sqrt_alphas_prod_t * x_zero + sqrt_one_minus_alphas_prod_t * noise
 
+<<<<<<< HEAD
     def p_losses(self, denoise_model, x_zero, t, noise=None, class_label=None, loss_type="l1"):
+=======
+    def p_losses(self, denoise_model, x_zero, t, noise=None, class_labels=None, loss_type="l1"):
+>>>>>>> main
         # TODO (2.2): compute the input to the network using the forward diffusion process and predict the noise using the model; if noise is None, you will need to create a new noise vector, otherwise use the provided one.
-        if noise == None:
+        if noise is None:
             noise = torch.randn_like(x_zero)
 
         x_noisy = self.q_sample(x_zero=x_zero, t=t, noise=noise)
+<<<<<<< HEAD
         predicted_noise = denoise_model(x_noisy, t, class_label)
+=======
+        model_prediction = denoise_model(x_noisy, t, class_labels)
+>>>>>>> main
 
         if loss_type == 'l1':
             # TODO (2.2): implement an L1 loss for this task
-            loss = F.l1_loss(noise, predicted_noise)
+            loss = F.l1_loss(noise, model_prediction)
         elif loss_type == 'l2':
             # TODO (2.2): implement an L2 loss for this task
-            loss = F.mse_loss(noise, predicted_noise)
+            loss = F.mse_loss(noise, model_prediction)
         else:
             raise NotImplementedError()
 

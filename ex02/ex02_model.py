@@ -1,6 +1,6 @@
 import math
 from functools import partial
-from einops import rearrange, reduce
+from einops import rearrange, reduce, repeat
 import torch
 from torch import nn, einsum
 import torch.nn.functional as F
@@ -195,8 +195,12 @@ class Unet(nn.Module):
         # determine dimensions
         self.channels = channels
         input_channels = channels   # adapted from the original source
+        self.class_free_guidance = class_free_guidance
+        # For classifier free guidance
         self.p_uncond = p_uncond
         self.class_free_guidance = class_free_guidance
+        self.num_classes = num_classes
+
         self.num_classes = num_classes
 
         init_dim = default(init_dim, dim)
@@ -223,11 +227,14 @@ class Unet(nn.Module):
 
         if self.class_free_guidance:
             self.class_embedder = nn.Embedding(num_classes, time_dim)
+<<<<<<< HEAD
         else:
             # self.class_embedder = nn.Parameter(torch.zeros(num_classes, 1))
             self.null_token = nn.Parameter(torch.zeros(8,time_dim))
         # device = "cuda:0" # if not args.no_cuda and torch.cuda.is_available() else "cpu"
         # self.class_embedder = self.class_embedder.to(device)
+=======
+>>>>>>> main
 
         # ======================================================
 
@@ -236,6 +243,10 @@ class Unet(nn.Module):
         self.ups = nn.ModuleList([])
         num_resolutions = len(in_out)
 
+        class_emb_var = None
+        if self.class_free_guidance:
+            class_emb_var = time_dim
+
         # TODO: Adapt all blocks accordingly such that they can accommodate a class embedding as well
         for ind, (dim_in, dim_out) in enumerate(in_out):
             is_last = ind >= (num_resolutions - 1)
@@ -243,8 +254,8 @@ class Unet(nn.Module):
             self.downs.append(
                 nn.ModuleList(
                     [
-                        block_klass(dim_in, dim_in, time_emb_dim=time_dim),
-                        block_klass(dim_in, dim_in, time_emb_dim=time_dim),
+                        block_klass(dim_in, dim_in, time_emb_dim=time_dim, classes_emb_dim=class_emb_var),
+                        block_klass(dim_in, dim_in, time_emb_dim=time_dim, classes_emb_dim=class_emb_var),
                         Residual(PreNorm(dim_in, LinearAttention(dim_in))),
                         Downsample(dim_in, dim_out)
                         if not is_last
@@ -254,9 +265,9 @@ class Unet(nn.Module):
             )
 
         mid_dim = dims[-1]
-        self.mid_block1 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim)
+        self.mid_block1 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim, classes_emb_dim=class_emb_var)
         self.mid_attn = Residual(PreNorm(mid_dim, Attention(mid_dim)))
-        self.mid_block2 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim)
+        self.mid_block2 = block_klass(mid_dim, mid_dim, time_emb_dim=time_dim, classes_emb_dim=class_emb_var)
 
         for ind, (dim_in, dim_out) in enumerate(reversed(in_out)):
             is_last = ind == (len(in_out) - 1)
@@ -264,8 +275,8 @@ class Unet(nn.Module):
             self.ups.append(
                 nn.ModuleList(
                     [
-                        block_klass(dim_out + dim_in, dim_out, time_emb_dim=time_dim),
-                        block_klass(dim_out + dim_in, dim_out, time_emb_dim=time_dim),
+                        block_klass(dim_out + dim_in, dim_out, time_emb_dim=time_dim, classes_emb_dim=class_emb_var),
+                        block_klass(dim_out + dim_in, dim_out, time_emb_dim=time_dim, classes_emb_dim=class_emb_var),
                         Residual(PreNorm(dim_out, LinearAttention(dim_out))),
                         Upsample(dim_out, dim_in)
                         if not is_last
@@ -276,7 +287,7 @@ class Unet(nn.Module):
 
         self.out_dim = default(out_dim, channels)
 
-        self.final_res_block = block_klass(dim * 2, dim, time_emb_dim=time_dim)
+        self.final_res_block = block_klass(dim * 2, dim, time_emb_dim=time_dim, classes_emb_dim=class_emb_var)
         self.final_conv = nn.Conv2d(dim, self.out_dim, 1)
 
     def forward(self, x, time, class_label=None):
@@ -285,13 +296,45 @@ class Unet(nn.Module):
         r = x.clone()
         t = self.time_mlp(time)
 
+        batch = x.shape[0]
+
+
         # TODO: Implement the class conditioning. Keep in mind that
         #  - for each element in the batch, the class embedding is replaced with the null token with a certain probability during training
         #  - during testing, you need to have control over whether the conditioning is applied or not
         #  - analogously to the time embedding, the class embedding is provided in every ResNet block as additional conditioning
+        #
+        # if class_label is not None and self.class_free_guidance:
+        #     # randomly chosen using p_uncond probability of choosing whether to use the class label or give the
+        #     if self.training:
+        #         if random.choices([True, False], weights=[1 - self.p_uncond, self.p_uncond], k=1)[0]:
+        #             c = self.class_embedder(class_label)
+        #         else:
+        #             c = nn.Parameter(torch.zeros_like(t))
+        #     else:
+        #         c = self.class_embedder(class_label)
+        # else:
+        #     c = None
 
+<<<<<<< HEAD
         # if class_label is not None:
         #     c = self.class_embedder(class_label)
+=======
+        if self.class_free_guidance:
+            if class_label is not None:
+                # randomly chosen using p_uncond probability of choosing whether to use the class label or give the
+                if self.training:
+                    if random.choices([True, False], weights=[1 - self.p_uncond, self.p_uncond], k=1)[0]:
+                        c = self.class_embedder(class_label)
+                    else:
+                        c = nn.Parameter(torch.zeros_like(t))
+                else:
+                    c = self.class_embedder(class_label)
+            else:
+                c = nn.Parameter(torch.zeros_like(t))
+        else:
+            c = None
+>>>>>>> main
 
         # else:
         #     if self.training and torch.rand(1).item() < self.p_uncond:
@@ -325,11 +368,17 @@ class Unet(nn.Module):
 
         for block1, block2, attn, downsample in self.downs:
             x = block1(x, t, c)
+<<<<<<< HEAD
             # x = block1(x, t)
             h.append(x)
 
             x = block2(x, t, c)
             # x = block2(x, t)
+=======
+            h.append(x)
+
+            x = block2(x, t, c)
+>>>>>>> main
             x = attn(x)
             h.append(x)
 
@@ -342,11 +391,17 @@ class Unet(nn.Module):
         for block1, block2, attn, upsample in self.ups:
             x = torch.cat((x, h.pop()), dim=1)
             x = block1(x, t, c)
+<<<<<<< HEAD
             # x = block1(x, t)
 
             x = torch.cat((x, h.pop()), dim=1)
             x = block2(x, t, c)
             # x = block2(x, t)
+=======
+
+            x = torch.cat((x, h.pop()), dim=1)
+            x = block2(x, t, c)
+>>>>>>> main
             x = attn(x)
 
             x = upsample(x)
