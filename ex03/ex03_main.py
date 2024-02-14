@@ -50,10 +50,10 @@ warnings.filterwarnings("ignore", category=PossibleUserWarning)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Configure training/inference/sampling for EBMs')
-    # TODO: Abdallah - Change the default path to the correct one.
+    # TODO: Change the default path to the correct one.
     parser.add_argument('--data_dir', type=str, default="/proj/aimi-adl/GLYPHS/.",
                         help='path to directory with glyph image data')
-    # TODO: Abdallah - Save model checkpoints in a local directory.
+    # TODO: Save model checkpoints in a local directory.
     parser.add_argument('--ckpt_dir', type=str, default="/proj/ciptmp/af23aduk/adl_ex03/saved_models/",
                         help='path to directory where model checkpoints are stored')
     parser.add_argument('--batch_size', type=int, default=32,
